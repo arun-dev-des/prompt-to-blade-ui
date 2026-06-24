@@ -48,6 +48,16 @@ export const PromptStudio = () => {
   const [notice, setNotice] = useState<string | null>(null);
   const [buildKey, setBuildKey] = useState(0);
 
+  // Grow the prompt box with its content: count hard newlines plus an estimate
+  // of wrapped lines (~56 chars/line), clamped to Blade's supported 1–5 range.
+  const promptLines = Math.min(
+    5,
+    Math.max(
+      2,
+      prompt.split('\n').reduce((sum, line) => sum + Math.max(1, Math.ceil(line.length / 56)), 0),
+    ),
+  ) as 1 | 2 | 3 | 4 | 5;
+
   const fallbackToRecipe = (value: string) => {
     const match = matchRecipe(value);
     setMode('recipe');
@@ -133,6 +143,7 @@ export const PromptStudio = () => {
           label="Your prompt"
           placeholder="e.g. a checkout summary with order items, total, and a pay button"
           value={prompt}
+          numberOfLines={promptLines}
           maxCharacters={500}
           onChange={({ value }) => setPrompt(value ?? '')}
         />
