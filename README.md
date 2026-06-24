@@ -10,7 +10,18 @@ npm run dev                       # open the printed localhost URL
 ```
 
 > `--legacy-peer-deps` is only needed because Blade lists React-Native peers that a
-> web app doesn't use. Everything else is a normal Vite + React + TypeScript app.
+> web app doesn't use (an `.npmrc` already sets this, so plain `npm install` works
+> too). Everything else is a normal Vite + React + TypeScript app.
+
+- **Level 1** (default view): the rebuilt Luma page.
+- **Level 2** (freestyle dry-run): open `#level2` — a "Payment Successful" screen built
+  in Blade. See [`BLADE_KIT.md`](./BLADE_KIT.md) for the on-system playbook.
+
+## Deploy (Vercel)
+
+The repo is one-click ready. On [vercel.com](https://vercel.com) → **Add New → Project**
+→ import this repo. Vercel auto-detects Vite; `vercel.json` + `.npmrc` already pin the
+install/build so it works first try. Or via CLI: `npx vercel --prod`.
 
 ## What it captures
 

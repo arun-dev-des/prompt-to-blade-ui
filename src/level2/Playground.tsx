@@ -1,4 +1,5 @@
-import { Box, Heading, Text, Badge, Card, CardBody } from '@razorpay/blade/components';
+import { Box, Heading, Text, Badge } from '@razorpay/blade/components';
+import { PaymentSuccess } from './PaymentSuccess';
 
 /**
  * LEVEL 2 — Freestyle sandbox.
@@ -33,24 +34,17 @@ export const Playground = () => (
       <Text color="surface.text.gray.muted">Freestyle · Blade-native sandbox</Text>
     </Box>
 
-    <Heading as="h1" size="xlarge" weight="semibold" color="surface.text.gray.normal">
-      Ready for the prompt
-    </Heading>
+    <Box display="flex" flexDirection="column" gap="spacing.1">
+      <Heading as="h1" size="xlarge" weight="semibold" color="surface.text.gray.normal">
+        Sample prompt: “Payment Successful” screen
+      </Heading>
+      <Text color="surface.text.gray.subtle">
+        A dry-run build proving the pipeline. Swap in the real prompt when it drops —
+        see <Text as="span" weight="semibold">BLADE_KIT.md</Text>.
+      </Text>
+    </Box>
 
-    {/* ───────── build the on-the-spot prompt below ───────── */}
-    <Card>
-      <CardBody>
-        <Box display="flex" flexDirection="column" gap="spacing.3">
-          <Text weight="semibold" color="surface.text.gray.normal">
-            Drop the build here
-          </Text>
-          <Text color="surface.text.gray.subtle">
-            Replace this card with whatever the prompt asks for — a screen, a flow, a
-            component. See <Text as="span" weight="semibold">BLADE_KIT.md</Text> for the
-            token + component reference.
-          </Text>
-        </Box>
-      </CardBody>
-    </Card>
+    {/* ───────── the on-the-spot build ───────── */}
+    <PaymentSuccess />
   </Box>
 );
