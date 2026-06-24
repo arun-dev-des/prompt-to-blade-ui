@@ -88,7 +88,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body ?? {};
-  const prompt = String(body.prompt ?? '').slice(0, 280).trim();
+  const prompt = String(body.prompt ?? '').slice(0, 500).trim();
   if (!prompt) {
     res.status(400).json({ error: 'empty_prompt' });
     return;
