@@ -148,16 +148,18 @@ export const PromptStudio = () => {
           onChange={({ value }) => setPrompt(value ?? '')}
         />
         <Box display="flex" flexDirection={{ base: 'column', m: 'row' }} gap="spacing.4" alignItems={{ base: 'stretch', m: 'center' }} justifyContent="space-between">
-          <Box display="flex" flexDirection="row" flexWrap="wrap" gap="spacing.3">
+          <Box display="flex" flexDirection="row" flexWrap="wrap" gap="spacing.3" flex={1} minWidth="spacing.0">
             {EXAMPLES.map((ex) => (
               <Button key={ex} variant="tertiary" size="xsmall" isDisabled={status === 'building'} onClick={() => { setPrompt(ex); build(ex); }}>
                 {ex}
               </Button>
             ))}
           </Box>
-          <Button icon={ZapIcon} iconPosition="left" isLoading={status === 'building'} onClick={() => build(prompt)}>
-            Build it
-          </Button>
+          <Box flexShrink={0}>
+            <Button icon={ZapIcon} iconPosition="left" isFullWidth isLoading={status === 'building'} onClick={() => build(prompt)}>
+              Build it
+            </Button>
+          </Box>
         </Box>
       </Box>
 
