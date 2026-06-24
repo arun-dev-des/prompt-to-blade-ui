@@ -7,6 +7,7 @@ import {
   Button,
   TextArea,
   Spinner,
+  Alert,
   Divider,
   SparklesIcon,
   ZapIcon,
@@ -44,6 +45,7 @@ export const PromptStudio = () => {
   const [mode, setMode] = useState<Mode>('ai');
   const [screen, setScreen] = useState<UIScreen | null>(null);
   const [recipeId, setRecipeId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [buildKey, setBuildKey] = useState(0);
 
   const fallbackToRecipe = (value: string) => {
@@ -62,6 +64,7 @@ export const PromptStudio = () => {
     setStatus('building');
     setScreen(null);
     setRecipeId(null);
+    setNotice(null);
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -73,9 +76,12 @@ export const PromptStudio = () => {
         setMode('ai');
         setScreen(data.screen);
       } else {
+        const body = await res.json().catch(() => ({}) as Record<string, unknown>);
+        setNotice(`Live AI unavailable (${res.status} ${String(body.error ?? '')}${body.detail ? ` — ${String(body.detail)}` : ''}). Showing an offline build.`);
         fallbackToRecipe(value);
       }
-    } catch {
+    } catch (err) {
+      setNotice(`Live AI unreachable (${err instanceof Error ? err.message : 'network'}). Showing an offline build.`);
       fallbackToRecipe(value);
     } finally {
       setBuildKey((k) => k + 1);
@@ -164,6 +170,9 @@ export const PromptStudio = () => {
         {status === 'done' ? (
           <Reveal key={buildKey}>
             <Box display="flex" flexDirection="column" gap="spacing.5">
+              {mode === 'recipe' && notice ? (
+                <Alert isFullWidth color="notice" title="Couldn't reach Claude" description={notice} isDismissible={false} />
+              ) : null}
               <Box display="flex" flexDirection="row" alignItems="center" gap="spacing.3" flexWrap="wrap">
                 <Badge color="positive" emphasis="intense">Built</Badge>
                 <Text size="small" color="surface.text.gray.muted">

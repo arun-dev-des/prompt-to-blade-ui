@@ -3,5 +3,10 @@
   "framework": "vite",
   "installCommand": "npm install --legacy-peer-deps",
   "buildCommand": "npm run build",
-  "outputDirectory": "dist"
+  "outputDirectory": "dist",
+  "functions": {
+    "api/generate.ts": {
+      "maxDuration": 60
+    }
+  }
 }
