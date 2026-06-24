@@ -96,6 +96,26 @@ for reading token values (e.g. building a gradient) or driving dark mode.
 - **Interactions** — use Blade's real hover/press/focus/loading; add toast/motion intent.
 - **Systems thinking** — tokens everywhere, reusable prop-driven components, theme-agnostic.
 
+## Design principle → Blade move (apply mid-build)
+
+The judging rubric is the Laws of UX in disguise. Each row turns a named principle
+into a concrete, on-system action you can take in seconds.
+
+| Principle | What it means | The Blade move |
+| --- | --- | --- |
+| **Hick's Law** | More choices = slower decisions | One `variant="primary"` Button per surface; demote the rest to `secondary`/`tertiary`; collapse extras into a `Menu`/`Dropdown` or `ButtonGroup` |
+| **Fitts's Law** | Closer + bigger = easier to hit | Targets ≥44px (`size="large"` / `minHeight="44px"`); `isFullWidth` primary on mobile; put the CTA where the thumb is |
+| **Jakob's Law** | Users expect familiar patterns | Reach for the expected component — `Table` for data, `Modal` for confirm, `Drawer` for filters, `TopNav`/`SideNav` for nav — don't invent |
+| **Miller's 7±2** | Working memory is small | Chunk with `Card`, `Divider`, `Accordion`, `StepGroup`; group fields with `InputGroup` |
+| **Progressive disclosure** | Show only what's needed now | `Collapsible`, `Accordion`, `Tooltip`, `Popover`, `Drawer` for advanced/secondary detail |
+| **Doherty Threshold** | Respond < 400ms or show progress | `isLoading` on Button, `Spinner`, `Skeleton`, `ProgressBar`; optimistic UI + `useToast` confirmation |
+| **Aesthetic–Usability** | Polished feels more usable | Consistent `spacing.*` rhythm, one type scale, `elevation` for depth, restrained palette |
+| **Von Restorff (isolation)** | The different thing is remembered | Make exactly ONE element pop — primary Button or an `intense` Badge/Indicator; keep the rest subtle |
+| **Law of Proximity (Gestalt)** | Near things read as related | Tight `gap` within a group, larger `gap`/`Divider` between groups |
+| **Feedback & signifiers (Norman)** | Every action needs a reaction | Hover/press/focus come free from Blade; add `useToast`, `validationState`, `Alert` for outcomes |
+| **Accessibility (WCAG)** | Usable by everyone | Token colour pairs are contrast-safe; `accessibilityLabel` on every icon-only control; semantic `Heading` levels; `VisuallyHidden` for SR-only text |
+| **Empty/error states** | Design the unhappy path | `EmptyState` with one clear action; `Alert` (`color="negative"`) for errors; never a dead end |
+
 ## Reusable pieces already in this repo
 
 `src/components/MetaRow.tsx` · `SectionHeading.tsx` · `Reveal.tsx` (token-timed entrance)
