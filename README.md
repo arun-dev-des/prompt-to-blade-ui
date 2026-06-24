@@ -29,6 +29,28 @@ npm run dev                       # open the printed localhost URL
   hex, no magic px, dark-mode safe.
 - If `ANTHROPIC_API_KEY` isn't set, Level 2 **falls back to local keyword recipes**, so
   the site never breaks.
+- AI builds render in a **Preview / Code** tab pair — the Code tab serializes the spec
+  back to copy-pasteable Blade JSX (`src/level2/screenToJsx.ts`), so the code *is* the
+  preview, on-token.
+
+### Run Level 2 locally (with live Claude)
+
+`npm run dev` only serves the frontend, so `/api/generate` 404s and Level 2 stays in
+recipe-fallback mode (no AI, no Code tab). To exercise the real Claude path locally you
+need `vercel dev`, which runs the serverless function too:
+
+```bash
+echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env.local   # your key, no quotes — .env.local is gitignored
+export ANTHROPIC_API_KEY=$(grep '^ANTHROPIC_API_KEY=' .env.local | cut -d= -f2-)
+npx vercel dev --listen 3000                         # then open http://localhost:3000/#level2
+```
+
+> **Gotcha:** `vercel dev` does **not** reliably inject `.env.local` into the function
+> process — a blank "Sensitive" `ANTHROPIC_API_KEY` from the linked Vercel project
+> shadows it, leaving the function with no key. Exporting the var into the shell *before*
+> launching (line 2 above) is what makes it stick. Also avoid quoting the key in
+> `.env.local`. Sanity check: `curl -s localhost:3000/api/generate` should report
+> `"keyConfigured":true`.
 
 ## Deploy (Vercel)
 

@@ -26,3 +26,5 @@ dist-ssr
 # never commit real keys
 .env
 .env.local
+.vercel
+.env*

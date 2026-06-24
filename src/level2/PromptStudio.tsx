@@ -9,13 +9,21 @@ import {
   Spinner,
   Alert,
   Divider,
+  Tabs,
+  TabList,
+  TabItem,
+  TabPanel,
   SparklesIcon,
   ZapIcon,
+  LayoutIcon,
+  CodeSnippetIcon,
   useToast,
 } from '@razorpay/blade/components';
 import { Reveal } from '../components/Reveal';
 import { recipes, matchRecipe } from './recipes';
 import { SchemaRenderer } from './SchemaRenderer';
+import { CodeBlock } from './CodeBlock';
+import { screenToJsx } from './screenToJsx';
 import type { UIScreen } from './uiSchema';
 
 type Status = 'idle' | 'building' | 'done';
@@ -197,7 +205,22 @@ export const PromptStudio = () => {
                 </Text>
               </Box>
               {mode === 'ai' && screen ? (
-                <SchemaRenderer screen={screen} />
+                <Tabs defaultValue="preview" variant="bordered">
+                  <TabList>
+                    <TabItem value="preview" leading={LayoutIcon}>Preview</TabItem>
+                    <TabItem value="code" leading={CodeSnippetIcon}>Code</TabItem>
+                  </TabList>
+                  <TabPanel value="preview">
+                    <Box paddingTop="spacing.6">
+                      <SchemaRenderer screen={screen} />
+                    </Box>
+                  </TabPanel>
+                  <TabPanel value="code">
+                    <Box paddingTop="spacing.6">
+                      <CodeBlock code={screenToJsx(screen)} />
+                    </Box>
+                  </TabPanel>
+                </Tabs>
               ) : matched ? (
                 <matched.Component />
               ) : (
