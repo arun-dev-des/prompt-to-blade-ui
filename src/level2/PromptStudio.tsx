@@ -133,7 +133,7 @@ export const PromptStudio = () => {
           label="Your prompt"
           placeholder="e.g. a checkout summary with order items, total, and a pay button"
           value={prompt}
-          maxCharacters={200}
+          maxCharacters={500}
           onChange={({ value }) => setPrompt(value ?? '')}
         />
         <Box display="flex" flexDirection={{ base: 'column', m: 'row' }} gap="spacing.4" alignItems={{ base: 'stretch', m: 'center' }} justifyContent="space-between">
