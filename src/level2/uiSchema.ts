@@ -52,8 +52,6 @@ export const UI_SCHEMA = {
     subtitle: { type: 'string' },
     sections: {
       type: 'array',
-      minItems: 1,
-      maxItems: 4,
       items: {
         type: 'object',
         additionalProperties: false,
@@ -64,8 +62,6 @@ export const UI_SCHEMA = {
           heading: { type: 'string' },
           elements: {
             type: 'array',
-            minItems: 1,
-            maxItems: 8,
             items: {
               anyOf: [
                 { type: 'object', additionalProperties: false, required: ['kind', 'text'], properties: { kind: { const: 'heading' }, text: { type: 'string' }, size: { type: 'string', enum: ['small', 'medium', 'large'] } } },

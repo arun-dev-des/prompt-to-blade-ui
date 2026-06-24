@@ -35,7 +35,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       messages: [{ role: 'user', content: `Design this in Blade: ${prompt}` }],
       // Force the response to match the Blade UI spec exactly.
       output_config: {
-        format: { type: 'json_schema', name: 'blade_screen', schema: UI_SCHEMA },
+        format: { type: 'json_schema', schema: UI_SCHEMA },
       },
     } as never);
 
