@@ -14,14 +14,31 @@ npm run dev                       # open the printed localhost URL
 > too). Everything else is a normal Vite + React + TypeScript app.
 
 - **Level 1** (default view): the rebuilt Luma page.
-- **Level 2** (freestyle dry-run): open `#level2` — a "Payment Successful" screen built
-  in Blade. See [`BLADE_KIT.md`](./BLADE_KIT.md) for the on-system playbook.
+- **Level 2** (freestyle): open `#level2` — **a prompt → Blade studio**. Type a screen or
+  component; the prompt goes to **Claude (`claude-opus-4-8`)**, which returns a structured
+  Blade UI spec, rendered live with real Blade components + tokens. See
+  [`BLADE_KIT.md`](./BLADE_KIT.md) for the on-system playbook.
+
+### How Level 2 stays on-system *and* safe
+
+- Claude is called from a **Vercel serverless function** (`api/generate.ts`) — the
+  Anthropic key lives only in a server env var, never in the browser bundle.
+- Claude is constrained via **structured outputs** to a fixed Blade vocabulary
+  (`src/level2/uiSchema.ts`); a deterministic renderer (`SchemaRenderer.tsx`) maps that
+  spec to Blade components. So whatever Claude writes is guaranteed on-system — no raw
+  hex, no magic px, dark-mode safe.
+- If `ANTHROPIC_API_KEY` isn't set, Level 2 **falls back to local keyword recipes**, so
+  the site never breaks.
 
 ## Deploy (Vercel)
 
 The repo is one-click ready. On [vercel.com](https://vercel.com) → **Add New → Project**
-→ import this repo. Vercel auto-detects Vite; `vercel.json` + `.npmrc` already pin the
+→ import this repo. Vercel auto-detects Vite; `vercel.json` + `.npmrc` pin the
 install/build so it works first try. Or via CLI: `npx vercel --prod`.
+
+**For the Level 2 Claude studio**, set one env var in Vercel → **Settings → Environment
+Variables**: `ANTHROPIC_API_KEY`. Without it, Level 2 uses the recipe fallback. Never
+commit a key — see `.env.example`.
 
 ## What it captures
 
