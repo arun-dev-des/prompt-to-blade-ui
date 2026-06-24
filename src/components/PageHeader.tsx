@@ -2,6 +2,7 @@ import {
   Box,
   Text,
   Badge,
+  Link,
   Tooltip,
   IconButton,
   RazorpayIcon,
@@ -18,6 +19,7 @@ import {
 export const PageHeader = () => {
   const { colorScheme, setColorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
+  const isLevel2 = typeof window !== 'undefined' && window.location.hash === '#level2';
 
   return (
     <Box
@@ -50,14 +52,24 @@ export const PageHeader = () => {
           </Badge>
         </Box>
 
-        <Tooltip content={isDark ? 'Switch to light' : 'Switch to dark'}>
-          <IconButton
-            icon={isDark ? SunIcon : MoonIcon}
+        <Box display="flex" flexDirection="row" alignItems="center" gap={{ base: 'spacing.4', m: 'spacing.6' }}>
+          <Link
+            variant="anchor"
             size="medium"
-            accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-            onClick={() => setColorScheme(isDark ? 'light' : 'dark')}
-          />
-        </Tooltip>
+            href={isLevel2 ? '#' : '#level2'}
+            color={isLevel2 ? 'neutral' : 'primary'}
+          >
+            {isLevel2 ? 'View Level 1' : 'View Level 2'}
+          </Link>
+          <Tooltip content={isDark ? 'Switch to light' : 'Switch to dark'}>
+            <IconButton
+              icon={isDark ? SunIcon : MoonIcon}
+              size="medium"
+              accessibilityLabel={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
+              onClick={() => setColorScheme(isDark ? 'light' : 'dark')}
+            />
+          </Tooltip>
+        </Box>
       </Box>
     </Box>
   );
