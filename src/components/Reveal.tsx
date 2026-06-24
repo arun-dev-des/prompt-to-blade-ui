@@ -13,12 +13,15 @@ const fadeUp = keyframes`
  * (not magic numbers), and the whole thing is disabled under
  * prefers-reduced-motion for accessibility.
  */
-const RevealRoot = styled.div<{ theme: Theme; $delay: number }>(({ theme, $delay }) => ({
-  animation: `${fadeUp} ${theme.motion.duration.gentle}ms ${theme.motion.easing.entrance} ${$delay}ms both`,
-  '@media (prefers-reduced-motion: reduce)': {
-    animation: 'none',
-  },
-}));
+// Tagged-template syntax — keyframe interpolation (${fadeUp}) is only supported
+// here, not in object syntax (object syntax throws styled-components error #12).
+const RevealRoot = styled.div<{ theme: Theme; $delay: number }>`
+  animation: ${fadeUp} ${({ theme }) => theme.motion.duration.gentle}ms
+    ${({ theme }) => theme.motion.easing.entrance} ${({ $delay }) => $delay}ms both;
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+  }
+`;
 
 export const Reveal = ({ children, delay = 0 }: { children: ReactNode; delay?: number }) => {
   const { theme } = useTheme();
