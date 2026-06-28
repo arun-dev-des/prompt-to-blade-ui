@@ -64,6 +64,32 @@
     footer{max-width:1180px;margin:0 auto;padding:0 24px 48px;color:var(--muted);font-size:13px;}
     code{font-family:var(--mono);background:#eef0f3;padding:1px 5px;border-radius:5px;font-size:12.5px;}
     a{color:var(--primary);}
+    /* live preview (approximate Blade) */
+    .approx{font-weight:400;text-transform:none;letter-spacing:0;color:var(--muted);font-size:11px;margin-left:8px;}
+    .preview{border:1px solid var(--line);border-radius:12px;padding:18px;background:#f7f8fa;}
+    .pv-title-wrap{display:flex;flex-direction:column;gap:3px;margin-bottom:14px;}
+    .pv-h1{font-size:20px;font-weight:700;letter-spacing:-.01em;}
+    .pv-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px;}
+    .pv-row{display:flex;flex-wrap:wrap;gap:14px;}
+    .pv-col{display:flex;flex-direction:column;gap:14px;}
+    .pv-h{font-weight:700;} .pv-h.small{font-size:14px;} .pv-h.medium{font-size:17px;} .pv-h.large{font-size:21px;}
+    .pv-text{color:#374151;} .pv-text.subtle{color:#6b7280;} .pv-text.muted{color:#9aa1ab;}
+    .pv-lab{font-size:12px;color:var(--muted);}
+    .pv-amount{font-size:26px;font-weight:700;} .pv-amount .dec{font-size:16px;color:var(--muted);font-weight:700;}
+    .pv-tile{flex:1;min-width:120px;background:#f7f8fa;border:1px solid var(--line);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:6px;}
+    .pv-badge{display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;padding:4px 10px;border-radius:999px;align-self:flex-start;}
+    .pv-btn{border:none;border-radius:10px;padding:11px 14px;font:inherit;font-weight:600;cursor:default;text-align:center;}
+    .pv-btn.primary{background:var(--primary);color:#fff;} .pv-btn.secondary{background:#fff;border:1px solid var(--line);color:var(--ink);} .pv-btn.tertiary{background:transparent;color:var(--primary);}
+    .pv-input .box{border:1px solid var(--line);border-radius:9px;padding:10px;color:#9aa1ab;background:#fff;margin-top:4px;}
+    .pv-switch{display:flex;align-items:center;justify-content:space-between;gap:12px;}
+    .pv-toggle{width:38px;height:22px;border-radius:999px;position:relative;flex:0 0 auto;}
+    .pv-toggle::after{content:"";position:absolute;top:2px;width:18px;height:18px;border-radius:50%;background:#fff;}
+    .pv-toggle.on{background:var(--primary);} .pv-toggle.on::after{left:18px;} .pv-toggle.off{background:#cbd2da;} .pv-toggle.off::after{left:2px;}
+    .pv-person{display:flex;align-items:center;gap:12px;}
+    .pv-av{width:40px;height:40px;border-radius:50%;background:var(--primary-soft);color:var(--primary);font-weight:700;display:flex;align-items:center;justify-content:center;flex:0 0 auto;}
+    .pv-feat{display:flex;align-items:center;gap:8px;color:#374151;font-size:14px;} .pv-feat .ck{color:var(--good);}
+    .pv-hr{border:none;border-top:1px solid var(--line);margin:0;width:100%;}
+    .pv-empty{color:var(--muted);text-align:center;padding:24px;}
   </style>
 </head>
 <body>
@@ -106,10 +132,13 @@
     </section>
 
     <!-- RIGHT: output -->
-    <section class="panel sticky">
-      <h2>What Claude returns (the live spec)</h2>
-      <div id="validity"></div>
+    <section class="panel">
+      <h2>Live preview <span class="approx">approximate — the real app renders these with Blade</span></h2>
+      <div id="preview" class="preview"></div>
+      <div id="validity" style="margin-top:14px"></div>
       <ul class="errs" id="errs"></ul>
+
+      <h2 style="margin-top:20px">What Claude returns (the JSON spec)</h2>
       <pre id="json"></pre>
 
       <div class="guard">
@@ -280,8 +309,50 @@
         .replace(/: (true|false)/g,': <span class="b">$1</span>');             // booleans
     }
 
+    // ── Live preview (approximate Blade visuals) ──────────────────────────────
+    const FEEDBACK={positive:['#0c8a4d','#e6f6ee'],negative:['#c0392b','#fdecea'],notice:['#9a6700','#fff4e0'],
+                    information:['#2b6cff','#e8f0ff'],neutral:['#4b5563','#eef0f3'],primary:['#2b6cff','#e8f0ff']};
+    const CUR={INR:'₹',USD:'$',EUR:'€',GBP:'£'};
+    const ICO={download:'⬇',share:'↗',check:'✓',arrow:'→',plus:'+',user:'👤',calendar:'📅',lock:'🔒',mail:'✉',sparkles:'✨',send:'➤',trash:'🗑'};
+    const esc=s=>String(s??'').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+    function money(v,cur,decimals){
+      const sym=CUR[cur]||(cur?cur+' ':''); const n=Number(v||0);
+      const s=n.toLocaleString('en-IN',{minimumFractionDigits:decimals?2:0,maximumFractionDigits:decimals?2:0});
+      if(decimals){const [a,b]=s.split('.'); return `${sym}${a}<span class="dec">.${b||'00'}</span>`;}
+      return sym+s;
+    }
+    function renderOne(e){
+      const p=e.props||{};
+      switch(e.kind){
+        case 'heading': return `<div class="pv-h ${p.size||'small'}">${esc(p.text)}</div>`;
+        case 'text': return `<div class="pv-text ${p.tone||'subtle'}">${esc(p.text)}</div>`;
+        case 'amount': return `<div>${p.label?`<div class="pv-lab">${esc(p.label)}</div>`:''}<div class="pv-amount">${money(p.value,p.currency,true)}</div></div>`;
+        case 'statTile':{const up=p.up!==false; const c=up?FEEDBACK.positive:FEEDBACK.negative;
+          const d=p.delta?`<span class="pv-badge" style="color:${c[0]};background:${c[1]}">${up?'▲':'▼'} ${esc(p.delta)}</span>`:'';
+          return `<div class="pv-tile"><div class="pv-lab">${esc(p.label)}</div><div class="pv-amount" style="font-size:22px">${money(p.value,p.currency,false)}</div>${d}</div>`;}
+        case 'badge':{const c=FEEDBACK[p.color||'neutral']; return `<span class="pv-badge" style="color:${c[0]};background:${c[1]}">${esc(p.text)}</span>`;}
+        case 'button': return `<button class="pv-btn ${p.variant||'primary'}">${p.icon&&ICO[p.icon]?ICO[p.icon]+' ':''}${esc(p.text)}</button>`;
+        case 'input': return `<div class="pv-input"><div class="pv-lab">${esc(p.label)}</div><div class="box">${esc(p.placeholder||' ')}</div></div>`;
+        case 'switchRow': return `<div class="pv-switch"><div><div style="font-weight:600">${esc(p.title)}</div>${p.description?`<div class="pv-lab">${esc(p.description)}</div>`:''}</div><div class="pv-toggle ${p.on?'on':'off'}"></div></div>`;
+        case 'person':{const init=(p.name||'?').trim().split(/\s+/).map(w=>w[0]).slice(0,2).join('').toUpperCase();
+          return `<div class="pv-person"><div class="pv-av">${esc(init)}</div><div><div style="font-weight:600">${esc(p.name)}</div>${p.subtitle?`<div class="pv-lab">${esc(p.subtitle)}</div>`:''}</div></div>`;}
+        case 'feature': return `<div class="pv-feat"><span class="ck">✓</span> ${esc(p.text)}</div>`;
+        case 'divider': return `<hr class="pv-hr"/>`;
+      }
+      return '';
+    }
+    function renderPreview(){
+      const grid=state.layout==='grid';
+      const inner = state.elements.length
+        ? `<div class="${grid?'pv-row':'pv-col'}">${state.elements.map(renderOne).join('')}</div>`
+        : '<div class="pv-empty">Add a component to see it render here.</div>';
+      const title = `<div class="pv-title-wrap"><div class="pv-h1">${esc(state.title)||'&nbsp;'}</div>${state.subtitle?`<div class="pv-text subtle">${esc(state.subtitle)}</div>`:''}</div>`;
+      $('preview').innerHTML = title + (state.variant==='card' ? `<div class="pv-card">${inner}</div>` : inner);
+    }
+
     function refresh(){
       const spec=buildSpec();
+      renderPreview();
       $('json').innerHTML=color(JSON.stringify(spec,null,2));
       const errs=validate(); const v=$('validity'); const ul=$('errs'); ul.innerHTML='';
       if(errs.length===0){ v.innerHTML='<span class="badge ok">✓ Valid spec — Claude could return this</span>'; }
