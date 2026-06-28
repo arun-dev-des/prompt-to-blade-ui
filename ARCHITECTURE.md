@@ -30,7 +30,7 @@ happens yet.
 
 ## Step 2 — You click "Build it." Your words get mailed to a helper.
 
-The button runs `build()`, which packs your sentence into a package and sends it to an
+The button runs `build()`, which packs your prompt into a package and sends it to an
 address, `/api/generate`, then shows a spinner.
 
 ```tsx
@@ -83,55 +83,108 @@ const message = await client.messages.create({
 res.status(200).json({ screen });                       // send the filled form back
 ```
 
-### What the form (`UI_SCHEMA`) looks like — and why it works
+### What the form (`UI_SCHEMA`) looks like — read top to bottom
 
-**If you've built a component set in Figma, you already understand this.** `UI_SCHEMA` is
-basically a component library written as text. It says: here are the only components you may
-place, here are each one's properties, and here's which properties are dropdowns vs. free text.
-Claude can drag in components and set their props — but it can't repaint them or invent new
-ones, exactly like a designer pulling from a locked library.
+Think of `UI_SCHEMA` as a **component library written as rules** — a designer's locked Figma
+library, but as text. Below is the real schema, read the way it nests: a **screen** → its
+**sections** → the **elements** inside them.
 
-> ▶ **[Play with it in the interactive Schema Playground →](https://razorpay-challenge.vercel.app/schema-playground.html)**
-> — add components, watch the preview *and* the JSON update together, and try to sneak in a raw
-> color to feel the guardrail bounce back.
+> **Quick key for the code:** `type` = the kind of value · `properties` = the allowed fields ·
+> `required` = which fields must be filled · `additionalProperties: false` = no other fields
+> allowed · `enum` = a fixed dropdown · `const` = a fixed value · `anyOf` = "any one of these shapes."
 
-Here's the rule for **one** component — the button:
+> ▶ **[Play with all of this in the interactive Schema Playground →](https://razorpay-challenge.vercel.app/schema-playground.html)**
+> — build a screen and watch this exact JSON form take shape live.
+
+**1 · The screen** — the outer object.
+
+```js
+const UI_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,        // only the fields listed below — nothing else
+  required: ['title', 'sections'],    // a screen MUST have a title and sections
+  properties: {
+    title:    { type: 'string' },     // required (it's in the list above)
+    subtitle: { type: 'string' },     // optional (it isn't)
+    sections: { type: 'array', items: { /* …a section — see #2 */ } },
+  },
+};
+```
+
+A screen is an object with exactly three possible fields. `title` and `sections` are mandatory;
+`subtitle` is optional. (Rule of thumb for the whole file: **if a field isn't in `required`, it's
+optional.**)
+
+**2 · A section** — each item inside `sections`.
 
 ```js
 {
-  required: ['kind', 'text'],                 // props that MUST be set
-  additionalProperties: false,                // ❗ no custom props / no overrides
+  type: 'object',
+  additionalProperties: false,
+  required: ['elements'],                   // a section must hold elements
   properties: {
-    kind:    { const: 'button' },             // this component is a "Button"
-    text:    { type: 'string' },              // the label (free text)
-    variant: { enum: ['primary', 'secondary', 'tertiary'] },  // a variant dropdown
-    icon:    { type: 'string' },              // an icon name
+    variant: { enum: ['card', 'plain'] },   // dropdown: render as a card or plain
+    layout:  { enum: ['stack', 'grid'] },    // dropdown: vertical stack or side-by-side grid
+    heading: { type: 'string' },             // optional section title
+    elements:{ type: 'array', items: { anyOf: [ /* …the 11 shapes — see #3 */ ] } },
   },
 }
 ```
 
-Read it the way you'd read a Figma component:
+A section is just a container that groups elements, with two dropdowns for how they're arranged.
 
-- It's a **Button** — the component type is fixed.
-- It **must have a label** — you can't place one with empty text.
-- Its style is a **variant dropdown** — Primary, Secondary, or Tertiary, and nothing else.
-- There is **no color, size, or spacing field** — and setting `additionalProperties: false`
-  means no new properties can be added.
+**3 · An element** — each item inside `elements`. This is the `anyOf`: every element must match
+**exactly one** of 11 component shapes. Here's one of them — the button:
 
-That last point *is* the guardrail: there's simply nowhere on the form to put a raw color or a
-custom pixel value. Think of a library with **"detach instance" turned off** — you always get
-the component exactly as the design system defines it.
+```js
+{
+  type: 'object',
+  additionalProperties: false,              // ❗ no extra fields → nowhere to put styling
+  required: ['kind', 'text'],
+  properties: {
+    kind:    { const: 'button' },           // the fixed tag that says "this is a Button"
+    text:    { type: 'string' },            // the label (free text)
+    variant: { enum: ['primary', 'secondary', 'tertiary'] },  // a variant dropdown
+    icon:    { type: 'string' },            // an optional icon name
+  },
+}
+```
 
-A whole screen is just a stack of these components grouped into **sections**, with a title on
-top — a frame built entirely from library parts.
+The `kind` (a fixed `const`) is the tag that tells the renderer which component to draw. The
+only "style" choice is the fixed `variant` dropdown — and `additionalProperties: false` means
+**there's nowhere to add a `color` or a `size`.** That absence *is* the guardrail: like a Figma
+library with **"detach instance" turned off**, you always get the component exactly as the
+design system defines it.
+
+The other 10 shapes follow the same pattern — a `kind` tag, a few required fields, fixed
+dropdowns, and no styling slot:
+
+| Component | What it's for |
+| --- | --- |
+| `heading` / `text` | section titles and body copy |
+| `amount` | a formatted money value (e.g. ₹2,499.00) |
+| `statTile` | a metric tile with a trend badge |
+| `badge` | a status pill (Paid, Failed, …) |
+| `button` | a primary / secondary / tertiary action |
+| `input` | a form field (text · email · password · textarea) |
+| `switchRow` | a labeled on/off toggle |
+| `person` | an avatar + name + subtitle |
+| `feature` | a checklist line with a tick |
+| `divider` | a horizontal separator |
 
 **The payoff:** the form offers only real, on-brand components and has no styling slots — so
 whatever Claude sends back is always something the app can build with actual Blade tokens.
 Claude makes the design decisions (which components, what copy, what order); the design system
 guarantees every pixel stays on-brand — even by accident.
 
-📄 **The rulebook →** [uiSchema.ts — the `UIScreen` shape + the full `UI_SCHEMA`, lines 35–85 (the button rule is line 72)](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/uiSchema.ts#L35-L85)
-📄 **Sent to Claude →** [api/generate.ts — the `messages.create` call, lines 99–111](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/api/generate.ts#L99-L111)
+> **One subtlety worth knowing:** the schema lives in **two** files. `api/generate.ts` inlines
+> its *own* `UI_SCHEMA` — and that's the copy actually sent to Claude (the serverless function is
+> self-contained, so its bundler has nothing to import). `src/level2/uiSchema.ts` holds the
+> canonical TypeScript types plus a matching copy the browser uses to render. Same shape, two
+> places, kept in sync.
+
+📄 **The rulebook actually sent to Claude →** [api/generate.ts — the inlined `UI_SCHEMA` object (lines 18–57), used by the `messages.create` call on line 99](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/api/generate.ts#L18-L57)
+📄 **The canonical types + the copy the browser renders from →** [uiSchema.ts — the `UIScreen` / element types and the mirrored schema (lines 13–85)](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/uiSchema.ts#L13-L85)
 
 ---
 
