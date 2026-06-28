@@ -1,121 +1,102 @@
-# AI × Design Meetup @ Razorpay — rebuilt in Blade
+# Blade Studio — prompt → Blade UI, by Claude
 
-**The Blade Build Challenge · Level 1.** The event's Luma page, recreated pixel-by-token
-in [Blade](https://blade.razorpay.com), Razorpay's design system. Same content, same
-hierarchy — every surface rendered with Blade components and tokens.
+**Describe a screen; Claude builds it live in Razorpay's [Blade](https://blade.razorpay.com)
+design system.** Type a prompt → Claude returns a structured spec → it renders instantly as
+real Blade components and tokens. No raw hex, no magic pixels — whatever you ask for.
 
-```bash
-npm install --legacy-peer-deps   # react-native peers are optional for web
-npm run dev                       # open the printed localhost URL
+> **AI makes the decisions. The design system guarantees the quality.**
+
+🔗 **Live:** https://razorpay-challenge.vercel.app
+
+![Blade Studio demo](docs/demo.gif)
+
+Built for Razorpay's **Blade Build Challenge** — from a phone, with
+[Claude Code](https://claude.com/claude-code), deployed to Vercel.
+
+---
+
+## The idea in one line
+
+The AI **never writes code.** It fills a locked, parts-only form (a JSON schema), and
+deterministic code turns that form into real Blade components. So **the model owns content
+and arrangement; the design system owns styling** — and the output is *guaranteed*
+on-system, not hopefully on-system.
+
+→ Full write-up: **[ARCHITECTURE.md](./ARCHITECTURE.md)**
+
+## How it works (30 seconds)
+
+```
+You type a prompt
+   → POST to a Vercel serverless function (the only place the Anthropic key lives)
+   → Claude (claude-opus-4-8) replies under a STRUCTURED-OUTPUT constraint:
+     its answer MUST match a fixed Blade schema — it can't return free-form code
+   → a deterministic renderer maps that spec to real Blade components + tokens
+   → you see it live, with a Preview / Code tab pair (the Code tab is the exact JSX)
 ```
 
-> `--legacy-peer-deps` is only needed because Blade lists React-Native peers that a
-> web app doesn't use (an `.npmrc` already sets this, so plain `npm install` works
-> too). Everything else is a normal Vite + React + TypeScript app.
+If `ANTHROPIC_API_KEY` isn't set (or Claude errors), the studio falls back to a library of
+local keyword-matched Blade recipes — so it **never breaks**, it degrades.
 
-- **Level 1** (default view): the rebuilt Luma page.
-- **Level 2** (freestyle): open `#level2` — **a prompt → Blade studio**. Type a screen or
-  component; the prompt goes to **Claude (`claude-opus-4-8`)**, which returns a structured
-  Blade UI spec, rendered live with real Blade components + tokens. See
-  [`BLADE_KIT.md`](./BLADE_KIT.md) for the on-system playbook.
-
-### How Level 2 stays on-system *and* safe
-
-- Claude is called from a **Vercel serverless function** (`api/generate.ts`) — the
-  Anthropic key lives only in a server env var, never in the browser bundle.
-- Claude is constrained via **structured outputs** to a fixed Blade vocabulary
-  (`src/level2/uiSchema.ts`); a deterministic renderer (`SchemaRenderer.tsx`) maps that
-  spec to Blade components. So whatever Claude writes is guaranteed on-system — no raw
-  hex, no magic px, dark-mode safe.
-- If `ANTHROPIC_API_KEY` isn't set, Level 2 **falls back to local keyword recipes**, so
-  the site never breaks.
-- AI builds render in a **Preview / Code** tab pair — the Code tab serializes the spec
-  back to copy-pasteable Blade JSX (`src/level2/screenToJsx.ts`), so the code *is* the
-  preview, on-token.
-
-### Run Level 2 locally (with live Claude)
-
-`npm run dev` only serves the frontend, so `/api/generate` 404s and Level 2 stays in
-recipe-fallback mode (no AI, no Code tab). To exercise the real Claude path locally you
-need `vercel dev`, which runs the serverless function too:
+## Run it
 
 ```bash
-echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env.local   # your key, no quotes — .env.local is gitignored
+npm install            # .npmrc pins --legacy-peer-deps (Blade lists RN peers a web app skips)
+```
+
+**Frontend only** (recipe fallback — no live AI):
+```bash
+npm run dev            # open the printed localhost URL
+```
+
+**Full app with live Claude** — needs the serverless function, so use `vercel dev`:
+```bash
+echo 'ANTHROPIC_API_KEY=sk-ant-...' > .env.local   # no quotes; .env.local is gitignored
 export ANTHROPIC_API_KEY=$(grep '^ANTHROPIC_API_KEY=' .env.local | cut -d= -f2-)
-npx vercel dev --listen 3000                         # then open http://localhost:3000/#level2
+npx vercel dev --listen 3000                        # then open http://localhost:3000
 ```
 
-> **Gotcha:** `vercel dev` does **not** reliably inject `.env.local` into the function
-> process — a blank "Sensitive" `ANTHROPIC_API_KEY` from the linked Vercel project
-> shadows it, leaving the function with no key. Exporting the var into the shell *before*
-> launching (line 2 above) is what makes it stick. Also avoid quoting the key in
-> `.env.local`. Sanity check: `curl -s localhost:3000/api/generate` should report
-> `"keyConfigured":true`.
+> **Gotcha:** `vercel dev` doesn't reliably inject `.env.local` into the function process —
+> a blank "Sensitive" `ANTHROPIC_API_KEY` from the linked Vercel project can shadow it.
+> Exporting the var into the shell *before* launching (line 2) is what makes it stick.
+> Sanity check: `curl -s localhost:3000/api/generate` should report `"keyConfigured":true`.
 
 ## Deploy (Vercel)
 
-The repo is one-click ready. On [vercel.com](https://vercel.com) → **Add New → Project**
-→ import this repo. Vercel auto-detects Vite; `vercel.json` + `.npmrc` pin the
-install/build so it works first try. Or via CLI: `npx vercel --prod`.
+Import the repo at [vercel.com](https://vercel.com) → **Add New → Project** (Vite is
+auto-detected; `vercel.json` + `.npmrc` pin install/build). Set one env var —
+`ANTHROPIC_API_KEY` — in **Settings → Environment Variables**. Or via CLI: `npx vercel --prod`.
+Never commit a key (see [`.env.example`](./.env.example)).
 
-**For the Level 2 Claude studio**, set one env var in Vercel → **Settings → Environment
-Variables**: `ANTHROPIC_API_KEY`. Without it, Level 2 uses the recipe fallback. Never
-commit a key — see `.env.example`.
-
-## What it captures
-
-- **Cover + title** — "AI × Design Meetup @ Razorpay" with a token-built gradient hero.
-- **When / Where** — Wed, 24 Jun · 7:30–11:00 PM · Razorpay Arena Office, Koramangala.
-- **RSVP state** — "You're In" + My Ticket, with the attendee's pass.
-- **Hosts + social proof** — host avatars and "64 going".
-- **About + Schedule** — copy and a `StepGroup` timeline.
-- **Primary action** — Add to Calendar (real `.ics` download) + Invite a friend (Web Share).
-
-## How it maps to the 5 judging lenses
-
-| Lens | Where it shows up |
-| --- | --- |
-| **Aesthetics** | One spacing scale (Blade `spacing.*`), one type scale (`Display`/`Heading`/`Text`), restrained primary/sea/cloud palette, consistent `medium`/`large` radii. |
-| **Ease of use** | One obvious primary action per surface, scannable two-column → single-column layout, ≥44px tap targets, labelled controls, `prefers-reduced-motion` respected. |
-| **Copy & story** | Warm, tight microcopy ("You're In", "Your kind of people will be there"). |
-| **Interactions** | Real hover/press/focus from Blade, toast feedback, a tasteful token-timed entrance animation, working theme toggle. |
-| **Systems thinking** | 100% Blade tokens — **no raw hex, no magic pixels** where a token exists. Data-driven from one typed `event` model. Reusable, theme-agnostic prop APIs (`MetaRow`, `SectionHeading`, `Reveal`). |
-
-## Architecture
+## Project map
 
 ```
+api/
+  generate.ts            # serverless fn: Claude call + the on-system schema/prompt (key lives here)
 src/
-  data/event.ts           # single typed source of truth — all copy/facts live here
-  utils/calendar.ts        # .ics generation (pure browser, no backend)
+  App.tsx                # one <BladeProvider> + <ToastContainer>, renders the studio
   components/
-    EventCover.tsx         # gradient hero (gradient colours read from theme tokens)
-    PageHeader.tsx          # sticky bar + dark-mode toggle (useTheme().setColorScheme)
-    MetaRow.tsx             # reusable icon-tile + two-line row (date / location)
-    RegistrationCard.tsx    # "You're In" + ticket + primary/secondary actions
-    AboutSection.tsx
-    ScheduleSection.tsx     # Blade StepGroup timeline
-    HostsSection.tsx        # hosts + "N going" AvatarGroup
-    SectionHeading.tsx      # shared section-title rhythm
-    Reveal.tsx              # entrance animation driven by Blade motion tokens
-    EventPage.tsx           # responsive composition
-  App.tsx                   # single <BladeProvider> + <ToastContainer>
+    PageHeader.tsx       # sticky bar + dark-mode toggle (useTheme().setColorScheme)
+    Reveal.tsx           # entrance animation driven by Blade motion tokens
+  level2/
+    Playground.tsx       # the studio entry
+    PromptStudio.tsx     # prompt box, build flow, Preview/Code tabs, state machine
+    uiSchema.ts          # THE CONTRACT — the Blade vocabulary Claude must fill (types + JSON schema)
+    SchemaRenderer.tsx   # maps a spec → real Blade components + tokens
+    screenToJsx.ts       # the inverse — spec → copy-pasteable Blade JSX (Code tab)
+    recipes.tsx          # local keyword-matched fallback compositions
+    PaymentSuccess.tsx   # one such recipe
+BLADE_KIT.md             # the Blade playbook used while building (distilled into the runtime prompt)
+ARCHITECTURE.md          # how it all fits together
 ```
 
-## On-system constraints honoured
+## On-system discipline
 
-- **Blade components + tokens only.** No raw hex anywhere; the one gradient reads its
-  colours from resolved theme tokens via `useTheme()`. Spacing, radii, borders, motion
-  and colour all come from `@razorpay/blade/tokens`.
-- **Responsive** mobile → desktop (Blade's `{ base, m, l }` responsive props).
-- **Accessible** — labelled icon buttons, semantic headings, contrast-safe token pairs,
-  ≥44px targets, reduced-motion fallback.
-- **Light theme, no backend, no routing.**
+- **Blade components + tokens only** — no raw hex, no magic pixels anywhere. Every color,
+  spacing, radius, and motion value resolves through `@razorpay/blade/tokens`.
+- **Structurally enforced** — Claude can only emit the schema's vocabulary, and the renderer
+  only ever outputs real Blade bricks. Off-system output is mechanically impossible.
+- **Dark-mode safe, responsive, accessible** — token color pairs, `{ base, m, l }` props,
+  labelled controls, ≥44px targets.
 
-## Stretch goals included
-
-- 🌗 **Dark mode** — toggle in the header (`BladeProvider` colour scheme).
-- 📅 **Add-to-calendar `.ics`** — generated and downloaded client-side.
-- 🔗 **Share / invite** — Web Share API with clipboard fallback.
-- ✨ **Entrance animation** — staggered fade-up using Blade motion duration/easing tokens.
-
-Built against `@razorpay/blade@12.98.1`.
+Built against `@razorpay/blade@12.98.1` · model `claude-opus-4-8`.
