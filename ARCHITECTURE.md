@@ -4,10 +4,7 @@
 
 We'll follow one example all the way through: you type **"a payment successful screen."**
 
-> **About the reference links:** each step links to the *exact lines* in a frozen snapshot of
-> the repo (the [`blog-v1`](https://github.com/arun-dev-des/prompt-to-blade-ui/tree/blog-v1)
-> tag). So every link always resolves **and** always lands on the lines this post describes —
-> even after the code changes later. (A revised post would point at a new tag, e.g. `blog-v2`.)
+> **Reference links:** each step links to the exact lines in the repo.
 
 ---
 
@@ -57,65 +54,77 @@ const build = async (text) => {
 
 ---
 
-## Step 3 — The helper asks Claude — but hands it a strict form (`UI_SCHEMA`).
+## Step 3 — The helper forces Claude to fill a strict form (`UI_SCHEMA`).
 
-`/api/generate` is a **tiny program deployed on the Vercel server**. It's the only place the
-secret key to talk to Claude lives (so the key never sits in the browser). It sends your
-words to Claude *together with a rulebook* called `UI_SCHEMA`.
+This is the heart of the whole thing, so it's worth slowing down.
+
+**The problem.** Left to its own devices, an LLM is a free-form text generator. Ask it to
+"design a payment screen" and it might hand back code with hard-coded colors like `#00ff00`,
+random pixel sizes, a layout that ignores your design system, or even a component that doesn't
+exist. Often useful — but **unpredictable**. You can't *guarantee* it'll be on-brand.
+
+**The technique: don't let it write freely — make it fill a form.** The Anthropic API has a
+feature called **structured outputs**: you hand the model a *schema* (a rulebook), and the
+reply is **forced** to match it. Claude can choose what goes in the blanks, but it cannot add a
+blank that isn't on the form — the API rejects anything off-shape. The constraint, not the
+prompt, is what keeps the output on-system.
+
+Here's the call. `/api/generate` is a **tiny program deployed on the Vercel server** (the only
+place the secret key lives, so it never sits in the browser). The 👈 line is where the rulebook
+is enforced:
 
 ```ts
 const message = await client.messages.create({
   model: 'claude-opus-4-8',
   system: SYSTEM_PROMPT,                               // "You are a Blade designer…"
   messages: [{ role: 'user', content: `Design this in Blade: ${prompt}` }],
-  output_config: { format: { schema: UI_SCHEMA } },    // 👈 the strict form
+  output_config: { format: { schema: UI_SCHEMA } },    // 👈 forces the reply to match the form
 });
 res.status(200).json({ screen });                       // send the filled form back
 ```
 
-### What is `UI_SCHEMA`, really?
+### What the form (`UI_SCHEMA`) looks like — and why it works
 
-It's a **machine-readable rulebook** (a format called JSON Schema) that lists *every part
-Claude is allowed to use* and *exactly which blanks each part has*. It's not a polite
-suggestion — it's passed to Claude through `output_config`, which **forces** the reply to
-match it. If Claude tried to answer with anything off-list, the system would reject it.
+**If you've built a component set in Figma, you already understand this.** `UI_SCHEMA` is
+basically a component library written as text. It says: here are the only components you may
+place, here are each one's properties, and here's which properties are dropdowns vs. free text.
+Claude can drag in components and set their props — but it can't repaint them or invent new
+ones, exactly like a designer pulling from a locked library.
 
-Here's the rule for *one* part — the button:
+Here's the rule for **one** component — the button:
 
 ```js
 {
-  required: ['kind', 'text'],                 // these blanks MUST be filled
-  additionalProperties: false,                // ❗ no inventing extra blanks
+  required: ['kind', 'text'],                 // props that MUST be set
+  additionalProperties: false,                // ❗ no custom props / no overrides
   properties: {
-    kind:    { const: 'button' },             // this part is a "button"
-    text:    { type: 'string' },              // any words
-    variant: { enum: ['primary', 'secondary', 'tertiary'] },  // pick ONE
+    kind:    { const: 'button' },             // this component is a "Button"
+    text:    { type: 'string' },              // the label (free text)
+    variant: { enum: ['primary', 'secondary', 'tertiary'] },  // a variant dropdown
     icon:    { type: 'string' },              // an icon name
   },
 }
 ```
 
-Read it like a form:
+Read it the way you'd read a Figma component:
 
-- **`required`** → the blanks that can't be left empty (a button must have `text`).
-- **`enum`** → a dropdown: `variant` can only be one of three values.
-- **`additionalProperties: false`** → the killer line. It means *"no blanks beyond the ones
-  listed."* So Claude **cannot** add a `color: "#00ff00"` or a `fontSize` field — **there's
-  simply nowhere on the form to put styling.** That absence is the guardrail.
+- It's a **Button** — the component type is fixed.
+- It **must have a label** — you can't place one with empty text.
+- Its style is a **variant dropdown** — Primary, Secondary, or Tertiary, and nothing else.
+- There is **no color, size, or spacing field** — and setting `additionalProperties: false`
+  means no new properties can be added.
 
-And the whole screen has a shape too:
+That last point *is* the guardrail: there's simply nowhere on the form to put a raw color or a
+custom pixel value. Think of a library with **"detach instance" turned off** — you always get
+the component exactly as the design system defines it.
 
-```ts
-type UIScreen = { title: string; subtitle?: string; sections: UISection[] };
-```
+A whole screen is just a stack of these components grouped into **sections**, with a title on
+top — a frame built entirely from library parts.
 
-A screen must have a `title` and a list of `sections`; each section holds a list of these
-"parts" (the allowed ones: heading, text, amount, statTile, badge, button, input, switchRow,
-person, feature, divider).
-
-**In plain words:** the helper makes Claude *fill out a form* instead of writing code. The
-form lists only on-brand parts and has no slot for colors or sizes — so the answer is always
-something the app can safely build.
+**The payoff:** the form offers only real, on-brand components and has no styling slots — so
+whatever Claude sends back is always something the app can build with actual Blade tokens.
+Claude makes the design decisions (which components, what copy, what order); the design system
+guarantees every pixel stays on-brand — even by accident.
 
 📄 **The rulebook →** [uiSchema.ts — the `UIScreen` shape + the full `UI_SCHEMA`, lines 35–85 (the button rule is line 72)](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/uiSchema.ts#L35-L85)
 📄 **Sent to Claude →** [api/generate.ts — the `messages.create` call, lines 99–111](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/api/generate.ts#L99-L111)
