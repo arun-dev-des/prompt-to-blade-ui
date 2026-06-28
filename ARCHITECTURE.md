@@ -91,6 +91,10 @@ place, here are each one's properties, and here's which properties are dropdowns
 Claude can drag in components and set their props — but it can't repaint them or invent new
 ones, exactly like a designer pulling from a locked library.
 
+> ▶ **Play with it:** the [**interactive Schema Playground**](https://razorpay-challenge.vercel.app/schema-playground.html)
+> lets you add components, watch this exact JSON build live, and try to sneak in a raw color to
+> feel the guardrail bounce back. The rest of this step explains what you're seeing.
+
 Here's the rule for **one** component — the button:
 
 ```js

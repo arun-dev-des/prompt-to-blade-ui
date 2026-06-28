@@ -1,0 +1,308 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blade Schema Playground — build a screen the way Claude must</title>
+  <meta name="description" content="An interactive way to learn the UI_SCHEMA behind the Blade Studio: add components, fill their props, watch the JSON build, and feel the additionalProperties:false guardrail." />
+  <style>
+    :root{
+      --bg:#eef0f3; --card:#fff; --ink:#1a1d23; --muted:#6b7280; --line:#e3e6ea;
+      --primary:#2b6cff; --primary-soft:#e8f0ff; --good:#1a8f5b; --good-soft:#e6f6ee;
+      --bad:#c0392b; --bad-soft:#fdecea; --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+      --radius:14px;
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+    header{max-width:1180px;margin:0 auto;padding:28px 24px 8px;}
+    h1{font-size:24px;margin:0 0 4px;letter-spacing:-.01em;}
+    header p{margin:0;color:var(--muted);max-width:760px;}
+    header .deck{color:var(--ink);font-style:italic;margin:6px 0 0;}
+    main{max-width:1180px;margin:0 auto;padding:16px 24px 64px;display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;}
+    @media (max-width:880px){main{grid-template-columns:1fr;}}
+    .panel{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px;}
+    .panel h2{font-size:13px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 14px;}
+    .sticky{position:sticky;top:16px;}
+    label.field{display:block;margin:0 0 10px;}
+    label.field .lab{font-size:12px;color:var(--muted);display:block;margin-bottom:3px;}
+    .req{color:var(--primary);font-weight:700;}
+    input[type=text],input[type=number],select,textarea{
+      width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff;color:var(--ink);
+    }
+    input:focus,select:focus{outline:2px solid var(--primary-soft);border-color:var(--primary);}
+    .row{display:flex;gap:10px;flex-wrap:wrap;}
+    .row > *{flex:1;min-width:120px;}
+    .palette{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 6px;}
+    .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;transition:.12s;}
+    .chip:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft);}
+    .el{border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;background:#fcfcfd;}
+    .el-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+    .kind{font-weight:700;font-family:var(--mono);font-size:13px;background:var(--primary-soft);color:var(--primary);padding:2px 8px;border-radius:7px;}
+    .x{border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:4px;}
+    .x:hover{color:var(--bad);}
+    .hint{font-size:12px;color:var(--muted);margin:6px 0 0;}
+    .sub{border-left:3px solid var(--line);padding-left:12px;margin:14px 0;}
+    pre{margin:0;background:#0f1729;color:#d6deeb;border-radius:12px;padding:16px;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;max-height:540px;}
+    .k{color:#9ecbff;} .s{color:#c3e88d;} .n{color:#f78c6c;} .b{color:#f78c6c;} .p{color:#7f8aa3;}
+    .badge{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:13px;padding:7px 12px;border-radius:999px;}
+    .badge.ok{background:var(--good-soft);color:var(--good);}
+    .badge.no{background:var(--bad-soft);color:var(--bad);}
+    .errs{margin:10px 0 0;padding:0;list-style:none;}
+    .errs li{font-size:13px;color:var(--bad);padding:3px 0 3px 18px;position:relative;}
+    .errs li::before{content:"✗";position:absolute;left:0;}
+    .guard{margin-top:16px;border:1px dashed var(--line);border-radius:12px;padding:14px;background:#fafbfc;}
+    .guard h3{margin:0 0 4px;font-size:14px;}
+    .guard p{margin:0 0 10px;color:var(--muted);font-size:13px;}
+    .guard .row{align-items:center;}
+    button.act{border:1px solid var(--primary);background:var(--primary);color:#fff;border-radius:9px;padding:8px 14px;font:inherit;cursor:pointer;flex:0 0 auto;}
+    button.act.ghost{background:#fff;color:var(--primary);}
+    button.act:hover{filter:brightness(.96);}
+    #toast{min-height:22px;margin-top:10px;font-size:13px;font-weight:600;}
+    #toast.no{color:var(--bad);} #toast.ok{color:var(--good);}
+    .shake{animation:shake .4s;}
+    @keyframes shake{0%,100%{transform:translateX(0)}20%,60%{transform:translateX(-6px)}40%,80%{transform:translateX(6px)}}
+    footer{max-width:1180px;margin:0 auto;padding:0 24px 48px;color:var(--muted);font-size:13px;}
+    code{font-family:var(--mono);background:#eef0f3;padding:1px 5px;border-radius:5px;font-size:12.5px;}
+    a{color:var(--primary);}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🧩 Blade Schema Playground</h1>
+    <p class="deck">Build a screen the way Claude has to — by filling a fixed form.</p>
+    <p>Add components from the palette, edit their props, and watch the exact JSON spec
+       Claude would return build on the right. Then try to add a raw color and feel the
+       <code>additionalProperties: false</code> guardrail push back.</p>
+  </header>
+
+  <main>
+    <!-- LEFT: builder -->
+    <section class="panel">
+      <h2>The builder</h2>
+
+      <label class="field">
+        <span class="lab">Screen title <span class="req">*required</span></span>
+        <input type="text" id="screenTitle" />
+      </label>
+      <label class="field">
+        <span class="lab">Screen subtitle <span style="color:var(--muted)">(optional)</span></span>
+        <input type="text" id="screenSubtitle" />
+      </label>
+
+      <div class="sub">
+        <div class="row">
+          <label class="field"><span class="lab">Section variant</span>
+            <select id="secVariant"><option>card</option><option>plain</option></select>
+          </label>
+          <label class="field"><span class="lab">Section layout</span>
+            <select id="secLayout"><option>stack</option><option>grid</option></select>
+          </label>
+        </div>
+      </div>
+
+      <h2 style="margin-top:18px">Add a component</h2>
+      <div class="palette" id="palette"></div>
+      <div id="elements"></div>
+    </section>
+
+    <!-- RIGHT: output -->
+    <section class="panel sticky">
+      <h2>What Claude returns (the live spec)</h2>
+      <div id="validity"></div>
+      <ul class="errs" id="errs"></ul>
+      <pre id="json"></pre>
+
+      <div class="guard">
+        <h3>🚧 Test the guardrail</h3>
+        <p>The schema has no slot for styling. Try to add your own property to the first
+           component — say a brand color — and watch what happens.</p>
+        <div class="row">
+          <input type="text" id="gName" placeholder="property name (e.g. color)" />
+          <input type="text" id="gVal" placeholder="value (e.g. #00ff00)" />
+          <button class="act" id="gAdd">Add property</button>
+        </div>
+        <button class="act ghost" id="gQuick" style="margin-top:10px">🎨 Quick: add color: #00ff00</button>
+        <div id="toast"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    This is the real shape behind <a href="https://razorpay-challenge.vercel.app">the Blade Studio</a> —
+    see <code>src/level2/uiSchema.ts</code>. Notice there's nowhere to put a color, size, or spacing value:
+    Claude picks the components and the copy; the design system owns every pixel.
+  </footer>
+
+  <script>
+    // ── The schema, encoded the same way uiSchema.ts defines it ──────────────
+    // type: 'string' | 'number' | 'boolean' | enum array. `req:true` = required.
+    const KINDS = {
+      heading:   { text:{t:'string',req:true},  size:{t:['small','medium','large']} },
+      text:      { text:{t:'string',req:true},  tone:{t:['normal','subtle','muted']} },
+      amount:    { label:{t:'string'}, value:{t:'number',req:true}, currency:{t:'string'} },
+      statTile:  { label:{t:'string',req:true}, value:{t:'number',req:true}, currency:{t:'string'}, delta:{t:'string'}, up:{t:'boolean'} },
+      badge:     { text:{t:'string',req:true},  color:{t:['positive','negative','notice','information','neutral','primary']} },
+      button:    { text:{t:'string',req:true},  variant:{t:['primary','secondary','tertiary']}, icon:{t:'string'} },
+      input:     { label:{t:'string',req:true}, placeholder:{t:'string'}, inputType:{t:['text','email','password','textarea']} },
+      switchRow: { title:{t:'string',req:true}, description:{t:'string'}, on:{t:'boolean'} },
+      person:    { name:{t:'string',req:true},  subtitle:{t:'string'} },
+      feature:   { text:{t:'string',req:true} },
+      divider:   {},
+    };
+    const DEFAULTS = {
+      heading:{text:'This month',size:'medium'},
+      text:{text:'A short line of copy.',tone:'subtle'},
+      amount:{label:'Amount paid',value:2499,currency:'INR'},
+      statTile:{label:'Revenue',value:128450,currency:'INR',delta:'+12%',up:true},
+      badge:{text:'Paid',color:'positive'},
+      button:{text:'Continue',variant:'primary',icon:''},
+      input:{label:'Email',placeholder:'you@company.com',inputType:'email'},
+      switchRow:{title:'Email alerts',description:'Notify me on every payment',on:true},
+      person:{name:'Aisha Khan',subtitle:'Product Designer'},
+      feature:{text:'Unlimited transactions'},
+      divider:{},
+    };
+
+    // ── State (seeded with the payment example) ──────────────────────────────
+    const state = {
+      title:'Payment successful',
+      subtitle:'Your payment went through.',
+      variant:'card', layout:'stack',
+      elements:[
+        {kind:'badge', props:{text:'Paid', color:'positive'}},
+        {kind:'amount', props:{label:'Amount paid', value:2499, currency:'INR'}},
+        {kind:'button', props:{text:'Download receipt', variant:'primary', icon:''}},
+      ],
+    };
+
+    const $ = id => document.getElementById(id);
+
+    // ── Palette ──────────────────────────────────────────────────────────────
+    const palette = $('palette');
+    Object.keys(KINDS).forEach(k=>{
+      const b=document.createElement('button'); b.className='chip'; b.textContent='+ '+k;
+      b.onclick=()=>{ state.elements.push({kind:k, props:{...DEFAULTS[k]}}); renderElements(); refresh(); };
+      palette.appendChild(b);
+    });
+
+    // ── Screen + section inputs ───────────────────────────────────────────────
+    $('screenTitle').value=state.title;
+    $('screenSubtitle').value=state.subtitle;
+    $('secVariant').value=state.variant;
+    $('secLayout').value=state.layout;
+    $('screenTitle').oninput=e=>{state.title=e.target.value;refresh();};
+    $('screenSubtitle').oninput=e=>{state.subtitle=e.target.value;refresh();};
+    $('secVariant').onchange=e=>{state.variant=e.target.value;refresh();};
+    $('secLayout').onchange=e=>{state.layout=e.target.value;refresh();};
+
+    // ── Render the element cards (only on add/remove, to preserve focus) ───────
+    function renderElements(){
+      const wrap=$('elements'); wrap.innerHTML='';
+      state.elements.forEach((el,i)=>{
+        const card=document.createElement('div'); card.className='el';
+        const head=document.createElement('div'); head.className='el-head';
+        head.innerHTML=`<span class="kind">kind: "${el.kind}"</span>`;
+        const x=document.createElement('button'); x.className='x'; x.textContent='✕'; x.title='remove';
+        x.onclick=()=>{ state.elements.splice(i,1); renderElements(); refresh(); };
+        head.appendChild(x); card.appendChild(head);
+
+        const spec=KINDS[el.kind];
+        if(Object.keys(spec).length===0){
+          const p=document.createElement('p'); p.className='hint'; p.textContent='No properties — a divider is just a divider.';
+          card.appendChild(p);
+        }
+        Object.entries(spec).forEach(([name,def])=>{
+          const f=document.createElement('label'); f.className='field';
+          const lab=document.createElement('span'); lab.className='lab';
+          lab.innerHTML=name+(def.req?' <span class="req">*</span>':' <span style="color:var(--muted)">(optional)</span>');
+          f.appendChild(lab);
+          let inp;
+          if(Array.isArray(def.t)){ inp=document.createElement('select'); def.t.forEach(o=>{const op=document.createElement('option');op.textContent=o;inp.appendChild(op);}); inp.value=el.props[name]??def.t[0]; }
+          else if(def.t==='boolean'){ inp=document.createElement('select'); ['true','false'].forEach(o=>{const op=document.createElement('option');op.textContent=o;inp.appendChild(op);}); inp.value=String(el.props[name]??false); }
+          else { inp=document.createElement('input'); inp.type=def.t==='number'?'number':'text'; inp.value=el.props[name]??''; }
+          inp.oninput=()=>{
+            let v=inp.value;
+            if(def.t==='number') v=v===''?'':Number(v);
+            else if(def.t==='boolean') v=(v==='true');
+            el.props[name]=v; refresh();
+          };
+          f.appendChild(inp); card.appendChild(f);
+        });
+        wrap.appendChild(card);
+      });
+    }
+
+    // ── Build the spec object (only include set optional props) ───────────────
+    function buildSpec(){
+      const elements=state.elements.map(el=>{
+        const out={kind:el.kind};
+        const spec=KINDS[el.kind];
+        Object.entries(spec).forEach(([name,def])=>{
+          const v=el.props[name];
+          const empty = v===undefined || v==='' || (def.t==='number' && Number.isNaN(v));
+          if(def.req || !empty){ if(!empty) out[name]=v; }
+        });
+        return out;
+      });
+      const section={};
+      if(state.variant) section.variant=state.variant;
+      if(state.layout) section.layout=state.layout;
+      section.elements=elements;
+      const screen={title:state.title};
+      if(state.subtitle) screen.subtitle=state.subtitle;
+      screen.sections=[section];
+      return screen;
+    }
+
+    // ── Validity (mirrors the schema's `required` rules) ──────────────────────
+    function validate(){
+      const errs=[];
+      if(!state.title.trim()) errs.push('Screen is missing its required "title".');
+      if(state.elements.length===0) errs.push('The section needs at least one element.');
+      state.elements.forEach((el,i)=>{
+        Object.entries(KINDS[el.kind]).forEach(([name,def])=>{
+          if(!def.req) return;
+          const v=el.props[name];
+          if(v===undefined||v===''||(def.t==='number'&&Number.isNaN(v)))
+            errs.push(`Element ${i+1} (${el.kind}) is missing required "${name}".`);
+        });
+      });
+      return errs;
+    }
+
+    // ── Pretty-print JSON with light syntax colors ────────────────────────────
+    function color(json){
+      return json
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/"(\\.|[^"\\])*"(?=\s*:)/g,'<span class="k">$&</span>')        // keys
+        .replace(/: "(\\.|[^"\\])*"/g, m=>': <span class="s">'+m.slice(2)+'</span>') // string values
+        .replace(/: (-?\d+\.?\d*)/g,': <span class="n">$1</span>')              // numbers
+        .replace(/: (true|false)/g,': <span class="b">$1</span>');             // booleans
+    }
+
+    function refresh(){
+      const spec=buildSpec();
+      $('json').innerHTML=color(JSON.stringify(spec,null,2));
+      const errs=validate(); const v=$('validity'); const ul=$('errs'); ul.innerHTML='';
+      if(errs.length===0){ v.innerHTML='<span class="badge ok">✓ Valid spec — Claude could return this</span>'; }
+      else{ v.innerHTML='<span class="badge no">✗ Invalid — '+errs.length+' issue'+(errs.length>1?'s':'')+'</span>';
+            errs.forEach(e=>{const li=document.createElement('li');li.textContent=e;ul.appendChild(li);}); }
+    }
+
+    // ── The guardrail demo (additionalProperties:false) ───────────────────────
+    function reject(name){
+      const t=$('toast'); t.className='no';
+      const first=state.elements[0]?.kind ?? 'the component';
+      t.textContent = name
+        ? `✗ Rejected: "${name}" isn't a property of "${first}". additionalProperties:false → no new properties can be added.`
+        : '✗ Rejected: additionalProperties:false → you can\'t add properties that aren\'t in the schema.';
+      const pre=$('json'); pre.classList.remove('shake'); void pre.offsetWidth; pre.classList.add('shake');
+    }
+    $('gAdd').onclick=()=>reject($('gName').value.trim());
+    $('gQuick').onclick=()=>{ $('gName').value='color'; $('gVal').value='#00ff00'; reject('color'); };
+
+    // ── Go ────────────────────────────────────────────────────────────────────
+    renderElements(); refresh();
+  </script>
+</body>
+</html>
