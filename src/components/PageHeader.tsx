@@ -2,7 +2,6 @@ import {
   Box,
   Text,
   Badge,
-  Link,
   Tooltip,
   IconButton,
   RazorpayIcon,
@@ -19,7 +18,6 @@ import {
 export const PageHeader = () => {
   const { colorScheme, setColorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
-  const isLevel2 = typeof window !== 'undefined' && window.location.hash === '#level2';
 
   return (
     <Box
@@ -53,11 +51,6 @@ export const PageHeader = () => {
         </Box>
 
         <Box display="flex" flexDirection="row" alignItems="center" gap={{ base: 'spacing.4', m: 'spacing.6' }}>
-          {!isLevel2 && (
-            <Link variant="anchor" size="medium" href="#level2" color="primary">
-              View Level 2
-            </Link>
-          )}
           <Tooltip content={isDark ? 'Switch to light' : 'Switch to dark'}>
             <IconButton
               icon={isDark ? SunIcon : MoonIcon}

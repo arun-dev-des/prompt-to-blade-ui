@@ -32,7 +32,6 @@ type Mode = 'ai' | 'recipe';
 const EXAMPLES = [
   'A payment successful screen',
   'A sign-in form',
-  'Pricing plans for a SaaS',
   'A revenue metrics dashboard',
   'Notification settings',
   'A refund request form',
