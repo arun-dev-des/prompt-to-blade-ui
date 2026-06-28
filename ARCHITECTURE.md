@@ -5,7 +5,7 @@
 We'll follow one example all the way through: you type **"a payment successful screen."**
 
 > **About the reference links:** each step links to the *exact lines* in a frozen snapshot of
-> the repo (the [`blog-v1`](https://github.com/arun-dev-des/razorpay-challenge/tree/blog-v1)
+> the repo (the [`blog-v1`](https://github.com/arun-dev-des/prompt-to-blade-ui/tree/blog-v1)
 > tag). So every link always resolves **and** always lands on the lines this post describes —
 > even after the code changes later. (A revised post would point at a new tag, e.g. `blog-v2`.)
 
@@ -27,7 +27,7 @@ const [prompt, setPrompt] = useState('');          // your prompt lives here
 **In plain words:** as you type, `prompt` always holds your current sentence. Nothing else
 happens yet.
 
-📄 **In the code →** [PromptStudio.tsx — the prompt text box, lines 149–156](https://github.com/arun-dev-des/razorpay-challenge/blob/blog-v1/src/level2/PromptStudio.tsx#L149-L156) *(the `prompt` variable itself is set up on line 50)*
+📄 **In the code →** [PromptStudio.tsx — the prompt text box, lines 149–156](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/PromptStudio.tsx#L149-L156) *(the `prompt` variable itself is set up on line 50)*
 
 ---
 
@@ -53,7 +53,7 @@ const build = async (text) => {
 
 **In plain words:** clicking sends your words off and shows a spinner while it waits.
 
-📄 **In the code →** [PromptStudio.tsx — the `build()` function, lines 75–107](https://github.com/arun-dev-des/razorpay-challenge/blob/blog-v1/src/level2/PromptStudio.tsx#L75-L107)
+📄 **In the code →** [PromptStudio.tsx — the `build()` function, lines 75–107](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/PromptStudio.tsx#L75-L107)
 
 ---
 
@@ -117,8 +117,8 @@ person, feature, divider).
 form lists only on-brand parts and has no slot for colors or sizes — so the answer is always
 something the app can safely build.
 
-📄 **The rulebook →** [uiSchema.ts — the `UIScreen` shape + the full `UI_SCHEMA`, lines 35–85 (the button rule is line 72)](https://github.com/arun-dev-des/razorpay-challenge/blob/blog-v1/src/level2/uiSchema.ts#L35-L85)
-📄 **Sent to Claude →** [api/generate.ts — the `messages.create` call, lines 99–111](https://github.com/arun-dev-des/razorpay-challenge/blob/blog-v1/api/generate.ts#L99-L111)
+📄 **The rulebook →** [uiSchema.ts — the `UIScreen` shape + the full `UI_SCHEMA`, lines 35–85 (the button rule is line 72)](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/uiSchema.ts#L35-L85)
+📄 **Sent to Claude →** [api/generate.ts — the `messages.create` call, lines 99–111](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/api/generate.ts#L99-L111)
 
 ---
 
@@ -149,7 +149,7 @@ download button) — but **no styling.** It's a furniture order form, filled in.
 
 **In plain words:** the spinner disappears; the app now has a description to draw.
 
-📄 **In the code →** [PromptStudio.tsx — saving the result, lines 92–94](https://github.com/arun-dev-des/razorpay-challenge/blob/blog-v1/src/level2/PromptStudio.tsx#L92-L94)
+📄 **In the code →** [PromptStudio.tsx — saving the result, lines 92–94](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/PromptStudio.tsx#L92-L94)
 
 ---
 
@@ -181,7 +181,7 @@ description item                  →   real Blade component you see
 **In plain words:** the renderer is a translator — JSON in, real Blade component out. The
 styling isn't decided here *or* by Claude; it lives inside the Blade components.
 
-📄 **The translator →** [SchemaRenderer.tsx — the `Element` mapping, lines 57–141](https://github.com/arun-dev-des/razorpay-challenge/blob/blog-v1/src/level2/SchemaRenderer.tsx#L57-L141)
+📄 **The translator →** [SchemaRenderer.tsx — the `Element` mapping, lines 57–141](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/SchemaRenderer.tsx#L57-L141)
 
 ---
 
@@ -194,7 +194,7 @@ styling isn't decided here *or* by Claude; it lives inside the Blade components.
 **In plain words:** the finished, on-brand Razorpay screen appears — built from your one
 sentence.
 
-📄 **In the code →** [PromptStudio.tsx — rendering the result, line 214](https://github.com/arun-dev-des/razorpay-challenge/blob/blog-v1/src/level2/PromptStudio.tsx#L214)
+📄 **In the code →** [PromptStudio.tsx — rendering the result, line 214](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/PromptStudio.tsx#L214)
 
 ---
 
@@ -221,4 +221,4 @@ If the secret key isn't set, or Claude errors, the studio doesn't show an error.
 your words to a small library of pre-built Blade screens by keyword and shows one of those
 instead — with a small "offline build" note. So it never breaks; it gracefully degrades.
 
-📄 **The fallback →** [recipes.tsx — the recipe library + keyword matcher, lines 269–283](https://github.com/arun-dev-des/razorpay-challenge/blob/blog-v1/src/level2/recipes.tsx#L269-L283)
+📄 **The fallback →** [recipes.tsx — the recipe library + keyword matcher, lines 269–283](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/recipes.tsx#L269-L283)
