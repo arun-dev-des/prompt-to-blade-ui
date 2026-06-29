@@ -1,5 +1,9 @@
 # Blade Studio — prompt → Blade UI, by Claude
 
+![Prompt to Blade UI — type a prompt, Claude builds it in Razorpay's Blade](docs/cover.png)
+
+[![Live demo](https://img.shields.io/badge/demo-live-2b6cff?style=flat-square)](https://razorpay-challenge.vercel.app) &nbsp;[![License: MIT](https://img.shields.io/badge/license-MIT-3fb950?style=flat-square)](LICENSE) &nbsp;[![Built with Blade](https://img.shields.io/badge/built%20with-Blade-863bff?style=flat-square)](https://blade.razorpay.com)
+
 **Describe a screen; Claude builds it live in Razorpay's [Blade](https://blade.razorpay.com)
 design system.** Type a prompt → Claude returns a structured spec → it renders instantly as
 real Blade components and tokens. No raw hex, no magic pixels — whatever you ask for.
