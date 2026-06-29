@@ -1,10 +1,14 @@
-# How your prompt turns into product UI in Razorpay's Blade design system
+# How I got AI to turn a prompt into Razorpay's Blade UI — without it ever going off-brand
 
-> **Type your prompt → Claude creates a JSON description of a screen → real Blade components rendered on screen.**
+Recently I attended Razorpay's **AI × Design Meetup** and took part in the **Blade Build
+Challenge** — then posted what I built on LinkedIn. The post blew up.
+
+A lot of people asked how the build actually works — so here's the full breakdown, for designers
+as much as engineers.
+
+> **Type your prompt → Claude creates a JSON description of a screen → real Blade components rendered on screen.** A step-by-step walkthrough of the build — and the repo is [fully open source](https://github.com/arun-dev-des/prompt-to-blade-ui).
 
 We'll follow one example all the way through: you type **"a payment successful screen."**
-
-> **Reference links:** each step links to the exact lines in the repo.
 
 ---
 
@@ -58,7 +62,7 @@ const build = async (text) => {
 
 This is the heart of the whole thing, so it's worth slowing down.
 
-**The problem.** Left to its own devices, an LLM is a free-form text generator. Ask it to
+**The problem.** By default, an LLM is a free-form text generator. Ask it to
 "design a payment screen" and it might hand back code with hard-coded colors like `#00ff00`,
 random pixel sizes, a layout that ignores your design system, or even a component that doesn't
 exist. Often useful — but **unpredictable**. You can't *guarantee* it'll be on-brand.
@@ -83,25 +87,23 @@ const message = await client.messages.create({
 res.status(200).json({ screen });                       // send the filled form back
 ```
 
-### What the form (`UI_SCHEMA`) looks like — read top to bottom
+That one argument — `schema: UI_SCHEMA` — **is the strict form** from the technique above. It's
+the rulebook the reply is forced to match: everything Claude is allowed to return is defined in
+it, and anything off-shape is rejected. So let's open `UI_SCHEMA` up and see what's inside.
 
-Think of `UI_SCHEMA` as a **component library written as rules** — a designer's locked Figma
-library, but as text. Below is the real schema, read the way it nests: a **screen** → its
-**sections** → the **elements** inside them.
+### What's inside `UI_SCHEMA` — read top to bottom
 
-> **Quick key for the code:** `type` = the kind of value · `properties` = the allowed fields ·
-> `required` = which fields must be filled · `additionalProperties: false` = no other fields
-> allowed · `enum` = a fixed dropdown · `const` = a fixed value · `anyOf` = "any one of these shapes."
+`UI_SCHEMA` is a **component library written as rules** — a designer's locked Figma library, but
+as text. Read it the way it nests: a **screen** → its **sections** → the **elements** inside them.
 
-> ▶ **[Play with all of this in the interactive Schema Playground →](https://razorpay-challenge.vercel.app/schema-playground.html)**
-> — build a screen and watch this exact JSON form take shape live.
-
-**1 · The screen** — the outer object.
+**1 · The screen** — the outer object. A screen has exactly three possible fields: `title` and
+`sections` are mandatory, `subtitle` is optional. (Rule of thumb for the whole file: **if a field
+isn't in `required`, it's optional.**)
 
 ```js
 const UI_SCHEMA = {
   type: 'object',
-  additionalProperties: false,        // only the fields listed below — nothing else
+  additionalProperties: false,        // only the fields listed in properties below — nothing else
   required: ['title', 'sections'],    // a screen MUST have a title and sections
   properties: {
     title:    { type: 'string' },     // required (it's in the list above)
@@ -111,11 +113,8 @@ const UI_SCHEMA = {
 };
 ```
 
-A screen is an object with exactly three possible fields. `title` and `sections` are mandatory;
-`subtitle` is optional. (Rule of thumb for the whole file: **if a field isn't in `required`, it's
-optional.**)
-
-**2 · A section** — each item inside `sections`.
+**2 · A section** — each item inside `sections`. A section is just a container that groups
+elements, with two dropdowns for how they're arranged.
 
 ```js
 {
@@ -131,7 +130,16 @@ optional.**)
 }
 ```
 
-A section is just a container that groups elements, with two dropdowns for how they're arranged.
+Its two dropdowns decide how the group looks and lays out:
+
+- **`variant`** is the *wrapper*. `card` puts the group inside a Blade Card — a bordered, slightly
+  raised, padded panel; `plain` drops the wrapper and places the elements straight on the
+  background.
+- **`layout`** is the *arrangement*. `stack` lays the elements in a vertical column (one under the
+  next); `grid` places them side by side in a row — handy for parallel items like stat tiles or
+  pricing columns.
+
+(Both are optional — leave them out and you get a plain, stacked section.)
 
 **3 · An element** — each item inside `elements`. This is the `anyOf`: every element must match
 **exactly one** of 11 component shapes. Here's one of them — the button:
@@ -159,29 +167,24 @@ design system defines it.
 The other 10 shapes follow the same pattern — a `kind` tag, a few required fields, fixed
 dropdowns, and no styling slot:
 
-| Component | What it's for |
-| --- | --- |
-| `heading` / `text` | section titles and body copy |
-| `amount` | a formatted money value (e.g. ₹2,499.00) |
-| `statTile` | a metric tile with a trend badge |
-| `badge` | a status pill (Paid, Failed, …) |
-| `button` | a primary / secondary / tertiary action |
-| `input` | a form field (text · email · password · textarea) |
-| `switchRow` | a labeled on/off toggle |
-| `person` | an avatar + name + subtitle |
-| `feature` | a checklist line with a tick |
-| `divider` | a horizontal separator |
+- **`heading` / `text`** — section titles and body copy
+- **`amount`** — a formatted money value (e.g. ₹2,499.00)
+- **`statTile`** — a metric tile with a trend badge
+- **`badge`** — a status pill (Paid, Failed, …)
+- **`button`** — a primary / secondary / tertiary action
+- **`input`** — a form field (text · email · password · textarea)
+- **`switchRow`** — a labeled on/off toggle
+- **`person`** — an avatar + name + subtitle
+- **`feature`** — a checklist line with a tick
+- **`divider`** — a horizontal separator
 
 **The payoff:** the form offers only real, on-brand components and has no styling slots — so
 whatever Claude sends back is always something the app can build with actual Blade tokens.
 Claude makes the design decisions (which components, what copy, what order); the design system
 guarantees every pixel stays on-brand — even by accident.
 
-> **One subtlety worth knowing:** the schema lives in **two** files. `api/generate.ts` inlines
-> its *own* `UI_SCHEMA` — and that's the copy actually sent to Claude (the serverless function is
-> self-contained, so its bundler has nothing to import). `src/level2/uiSchema.ts` holds the
-> canonical TypeScript types plus a matching copy the browser uses to render. Same shape, two
-> places, kept in sync.
+> ▶ **[Play with all of this in the interactive Schema Playground →](https://razorpay-challenge.vercel.app/schema-playground.html)**
+> — build a screen and watch this exact JSON form take shape live.
 
 📄 **The rulebook actually sent to Claude →** [api/generate.ts — the inlined `UI_SCHEMA` object (lines 18–57), used by the `messages.create` call on line 99](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/api/generate.ts#L18-L57)
 📄 **The canonical types + the copy the browser renders from →** [uiSchema.ts — the `UIScreen` / element types and the mirrored schema (lines 13–85)](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/uiSchema.ts#L13-L85)
@@ -190,8 +193,8 @@ guarantees every pixel stays on-brand — even by accident.
 
 ## Step 4 — Claude returns a *description*, not a design.
 
-Because of the form, Claude can only send back a plain list of *which parts, in what order,
-with what words* — never colors or pixels:
+What comes back is **`UI_SCHEMA` filled in** — the rulebook from Step 3, now a concrete answer.
+It has the same `screen → sections → elements` shape, and every field is one the schema allowed:
 
 ```json
 {
@@ -204,25 +207,40 @@ with what words* — never colors or pixels:
 }
 ```
 
-**In plain words:** Claude chose the *content and layout* (a "Paid" badge, an amount, a
-download button) — but **no styling.** It's a furniture order form, filled in.
+**In plain words:** trace it against the rules from Step 3 — it's a screen (`title` + `sections`)
+holding one section of `elements`; each element's `kind` is one of the 11; the badge's `color` is
+a value straight from that dropdown. And notice what's *missing*: no hex, no pixels, no field the
+schema didn't define — `additionalProperties: false` saw to that. Claude chose the content and the
+order; the form shaped everything else.
 
 ---
 
-## Step 5 — The browser saves that description.
+## Step 5 — Saving the result triggers the renderer.
 
-`setScreen(data.screen)` stores the JSON and tells the app: "we have a result — show it."
+Back in `build()`, the **filled-in `UI_SCHEMA`** Claude returned (Step 4) — it arrives as
+`data.screen` — is handed to `setScreen`. In React, calling `setScreen` re-renders the component,
+and on that re-render this line runs the renderer with it:
 
-**In plain words:** the spinner disappears; the app now has a description to draw.
+```tsx
+setScreen(data.screen);                          // Claude's description goes in (inside build(), Step 2)
+...
+{screen && <SchemaRenderer screen={screen} />}   // the re-render reaches this → SchemaRenderer gets the description
+```
 
-📄 **In the code →** [PromptStudio.tsx — saving the result, lines 92–94](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/PromptStudio.tsx#L92-L94)
+**In plain words:** `setScreen` doesn't call `SchemaRenderer` itself — it just triggers a
+re-render, and that JSX line is *where* the description reaches `SchemaRenderer` and becomes UI.
+
+📄 **Saving →** [PromptStudio.tsx — `setScreen(data.screen)` (line 94)](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/PromptStudio.tsx#L94)
+📄 **Rendering →** [PromptStudio.tsx — `<SchemaRenderer screen={screen} />` (line 214)](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/PromptStudio.tsx#L214)
 
 ---
 
-## Step 6 — The renderer turns each line into a real Blade component.
+## Step 6 — The schema renderer turns each element into a real Blade component.
 
-`SchemaRenderer` reads the list and, for each item, drops in the matching **real Blade
-component** — which already carries Razorpay's exact colors, spacing, and fonts.
+`SchemaRenderer` — the component `screen` was passed to in Step 5 — walks the description: its
+sections, and the elements inside them. For each element, a `switch` on its `kind` picks the
+matching **real Blade component**, which already carries Razorpay's exact colors, spacing, and
+fonts. That switch is the heart of it:
 
 ```tsx
 const Element = ({ el }) => {
@@ -247,18 +265,18 @@ description item                  →   real Blade component you see
 **In plain words:** the renderer is a translator — JSON in, real Blade component out. The
 styling isn't decided here *or* by Claude; it lives inside the Blade components.
 
+> ▶ **[See the mapping live in the Schema Playground →](https://razorpay-challenge.vercel.app/schema-playground.html)**
+> — every element you add renders instantly as a Blade component, right beside its JSON.
+
 📄 **The translator →** [SchemaRenderer.tsx — the `Element` mapping, lines 57–141](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/SchemaRenderer.tsx#L57-L141)
 
 ---
 
 ## Step 7 — React paints it. You see your screen.
 
-```tsx
-{screen && <SchemaRenderer screen={screen} />}
-```
-
-**In plain words:** the finished, on-brand Razorpay screen appears — built from your one
-sentence.
+React turns those Blade components into real pixels, and the finished, on-brand Razorpay screen
+appears — built from your one sentence. (In the studio it shows under a **Preview** tab, with a
+**Code** tab beside it that prints the same screen as copy-pasteable Blade JSX.)
 
 📄 **In the code →** [PromptStudio.tsx — rendering the result, line 214](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/PromptStudio.tsx#L214)
 
@@ -288,3 +306,13 @@ your words to a small library of pre-built Blade screens by keyword and shows on
 instead — with a small "offline build" note. So it never breaks; it gracefully degrades.
 
 📄 **The fallback →** [recipes.tsx — the recipe library + keyword matcher, lines 269–283](https://github.com/arun-dev-des/prompt-to-blade-ui/blob/blog-v1/src/level2/recipes.tsx#L269-L283)
+
+---
+
+## Open source
+
+The whole thing is open source — fork it, read it, or build your own design-system studio on top:
+
+### → [github.com/arun-dev-des/prompt-to-blade-ui](https://github.com/arun-dev-des/prompt-to-blade-ui)
+
+Try the [**live app**](https://razorpay-challenge.vercel.app) · play with the [**Schema Playground**](https://razorpay-challenge.vercel.app/schema-playground.html). Built on Razorpay's [Blade](https://blade.razorpay.com) design system.
