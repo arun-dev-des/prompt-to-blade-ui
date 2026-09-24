@@ -20,6 +20,7 @@ import {
   useToast,
 } from '@razorpay/blade/components';
 import { Reveal } from '../components/Reveal';
+import { track } from '../analytics';
 import { recipes, matchRecipe } from './recipes';
 import { SchemaRenderer } from './SchemaRenderer';
 import { CodeBlock } from './CodeBlock';
@@ -70,6 +71,7 @@ export const PromptStudio = () => {
     setMode('recipe');
     setScreen(null);
     setRecipeId(match ? match.id : 'fallback');
+    return match ? match.id : null;
   };
 
   const build = async (text: string) => {
@@ -82,6 +84,10 @@ export const PromptStudio = () => {
     setScreen(null);
     setRecipeId(null);
     setNotice(null);
+    track('prompt_build_started', {
+      promptLength: value.length,
+      isExample: EXAMPLES.includes(value),
+    });
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
@@ -92,14 +98,17 @@ export const PromptStudio = () => {
         const data = (await res.json()) as { screen: UIScreen };
         setMode('ai');
         setScreen(data.screen);
+        track('prompt_build_succeeded', { mode: 'ai', sectionCount: data.screen.sections?.length ?? 0 });
       } else {
         const body = await res.json().catch(() => ({}) as Record<string, unknown>);
         setNotice(`Live AI unavailable (${res.status} ${String(body.error ?? '')}${body.detail ? ` — ${String(body.detail)}` : ''}). Showing an offline build.`);
-        fallbackToRecipe(value);
+        const recipeMatch = fallbackToRecipe(value);
+        track('prompt_build_fallback', { reason: 'api_error', status: res.status, recipeMatch });
       }
     } catch (err) {
       setNotice(`Live AI unreachable (${err instanceof Error ? err.message : 'network'}). Showing an offline build.`);
-      fallbackToRecipe(value);
+      const recipeMatch = fallbackToRecipe(value);
+      track('prompt_build_fallback', { reason: 'network_error', recipeMatch });
     } finally {
       setBuildKey((k) => k + 1);
       setStatus('done');

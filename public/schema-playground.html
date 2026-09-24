@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Blade Schema Playground — build a screen the way Claude must</title>
-  <meta name="description" content="An interactive way to learn the UI_SCHEMA behind the Blade Studio: add components, fill their props, watch the JSON build, and feel the additionalProperties:false guardrail." />
+  <meta name="description" content="An interactive way to learn the UI_SCHEMA behind the Blade Studio: add sections and components, fill their props, watch the JSON build, and feel the additionalProperties:false guardrail." />
   <style>
     :root{
       --bg:#eef0f3; --card:#fff; --ink:#1a1d23; --muted:#6b7280; --line:#e3e6ea;
@@ -25,6 +25,7 @@
     .sticky{position:sticky;top:16px;}
     label.field{display:block;margin:0 0 10px;}
     label.field .lab{font-size:12px;color:var(--muted);display:block;margin-bottom:3px;}
+    .lab code{font-family:var(--mono);background:#eef0f3;padding:1px 5px;border-radius:5px;font-size:11.5px;color:var(--ink);}
     .req{color:var(--primary);font-weight:700;}
     input[type=text],input[type=number],select,textarea{
       width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:9px;font:inherit;background:#fff;color:var(--ink);
@@ -35,13 +36,18 @@
     .palette{display:flex;flex-wrap:wrap;gap:8px;margin:2px 0 6px;}
     .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:6px 12px;font-size:13px;cursor:pointer;transition:.12s;}
     .chip:hover{border-color:var(--primary);color:var(--primary);background:var(--primary-soft);}
-    .el{border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;background:#fcfcfd;}
+    .section-block{border:1px solid var(--line);border-radius:12px;padding:14px;margin:12px 0;background:#fbfcfd;}
+    .section-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;}
+    .section-name{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--primary);background:var(--primary-soft);padding:2px 8px;border-radius:7px;}
+    .section-block h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:12px 0 6px;}
+    .add-sec{border:1px dashed var(--primary);background:var(--primary-soft);color:var(--primary);border-radius:10px;padding:9px 14px;font:inherit;font-weight:600;cursor:pointer;width:100%;margin-top:4px;}
+    .add-sec:hover{filter:brightness(.97);}
+    .el{border:1px solid var(--line);border-radius:12px;padding:12px;margin:10px 0;background:#fff;}
     .el-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
     .kind{font-weight:700;font-family:var(--mono);font-size:13px;background:var(--primary-soft);color:var(--primary);padding:2px 8px;border-radius:7px;}
     .x{border:none;background:none;color:var(--muted);cursor:pointer;font-size:16px;line-height:1;padding:4px;}
     .x:hover{color:var(--bad);}
     .hint{font-size:12px;color:var(--muted);margin:6px 0 0;}
-    .sub{border-left:3px solid var(--line);padding-left:12px;margin:14px 0;}
     pre{margin:0;background:#0f1729;color:#d6deeb;border-radius:12px;padding:16px;overflow:auto;font-family:var(--mono);font-size:12.5px;line-height:1.6;max-height:540px;}
     .k{color:#9ecbff;} .s{color:#c3e88d;} .n{color:#f78c6c;} .b{color:#f78c6c;} .p{color:#7f8aa3;}
     .badge{display:inline-flex;align-items:center;gap:7px;font-weight:600;font-size:13px;padding:7px 12px;border-radius:999px;}
@@ -69,6 +75,7 @@
     .preview{border:1px solid var(--line);border-radius:12px;padding:18px;background:#f7f8fa;}
     .pv-title-wrap{display:flex;flex-direction:column;gap:3px;margin-bottom:14px;}
     .pv-h1{font-size:20px;font-weight:700;letter-spacing:-.01em;}
+    .pv-sections{display:flex;flex-direction:column;gap:16px;}
     .pv-card{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px;display:flex;flex-direction:column;gap:14px;}
     .pv-row{display:flex;flex-wrap:wrap;gap:14px;}
     .pv-col{display:flex;flex-direction:column;gap:14px;}
@@ -91,12 +98,23 @@
     .pv-hr{border:none;border-top:1px solid var(--line);margin:0;width:100%;}
     .pv-empty{color:var(--muted);text-align:center;padding:24px;}
   </style>
+  <script>
+    // PostHog product analytics — same public project as the main app (public/client
+    // key, safe to inline). This page is a standalone static file outside the Vite
+    // bundle, so it gets PostHog's official bootstrap snippet instead of the
+    // posthog-js import used in src/analytics.ts.
+    !function(t,e){var o,n,p,r;e.__SV||(window.posthog && window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}p||((p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",p.onerror=function(){p=null},(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r));var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="init capture register register_once register_for_session unregister unregister_for_session getFeatureFlag getFeatureFlagResult isFeatureEnabled reloadFeatureFlags updateEarlyAccessFeatureEnrollment getEarlyAccessFeatures on onFeatureFlags onSessionId getSurveys getActiveMatchingSurveys renderSurvey canRenderSurvey getNextSurveyStep identify setPersonProperties group resetGroups setPersonPropertiesForFlags resetPersonPropertiesForFlags setGroupPropertiesForFlags resetGroupPropertiesForFlags reset get_distinct_id getGroups get_session_id get_session_replay_url alias set_config startSessionRecording stopSessionRecording sessionRecordingStarted captureException loadToolbar get_property getSessionProperty createPersonProfile opt_in_capturing opt_out_capturing has_opted_in_capturing has_opted_out_capturing clear_opt_in_out_capturing debug".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+    posthog.init('phc_zC9h35hs6qquUt7fFxFbgDCcLVgdL5n87GyBiYkhgDZM', {
+      api_host: 'https://us.i.posthog.com',
+      defaults: '2026-05-30',
+    });
+  </script>
 </head>
 <body>
   <header>
     <h1>🧩 Blade Schema Playground</h1>
     <p class="deck">Build a screen the way Claude has to — by filling a fixed form.</p>
-    <p>Add components from the palette, edit their props, and watch the exact JSON spec
+    <p>Add sections and components from the palette, edit their props, and watch the exact JSON spec
        Claude would return build on the right. Then try to add a raw color and feel the
        <code>additionalProperties: false</code> guardrail push back.</p>
   </header>
@@ -107,28 +125,17 @@
       <h2>The builder</h2>
 
       <label class="field">
-        <span class="lab">Screen title <span class="req">*required</span></span>
+        <span class="lab"><code>title</code> <span class="req">*required</span></span>
         <input type="text" id="screenTitle" />
       </label>
       <label class="field">
-        <span class="lab">Screen subtitle <span style="color:var(--muted)">(optional)</span></span>
+        <span class="lab"><code>subtitle</code> <span style="color:var(--muted)">(optional)</span></span>
         <input type="text" id="screenSubtitle" />
       </label>
 
-      <div class="sub">
-        <div class="row">
-          <label class="field"><span class="lab">Section variant</span>
-            <select id="secVariant"><option>card</option><option>plain</option></select>
-          </label>
-          <label class="field"><span class="lab">Section layout</span>
-            <select id="secLayout"><option>stack</option><option>grid</option></select>
-          </label>
-        </div>
-      </div>
-
-      <h2 style="margin-top:18px">Add a component</h2>
-      <div class="palette" id="palette"></div>
-      <div id="elements"></div>
+      <h2 style="margin-top:18px"><code style="text-transform:none">sections</code></h2>
+      <div id="sections"></div>
+      <button class="add-sec" id="addSection">+ Add section</button>
     </section>
 
     <!-- RIGHT: output -->
@@ -192,96 +199,145 @@
       divider:{},
     };
 
-    // ── State (seeded with the payment example) ──────────────────────────────
+    // ── State (seeded with the payment example — mirrors the real screen: a
+    //    card section for the receipt, then a plain section for the actions) ──
     const state = {
       title:'Payment successful',
-      subtitle:'Your payment went through.',
-      variant:'card', layout:'stack',
-      elements:[
-        {kind:'badge', props:{text:'Paid', color:'positive'}},
-        {kind:'amount', props:{label:'Amount paid', value:2499, currency:'INR'}},
-        {kind:'button', props:{text:'Download receipt', variant:'primary', icon:'download'}},
-        {kind:'button', props:{text:'Share receipt', variant:'secondary', icon:'share'}},
-        {kind:'button', props:{text:'Back to home', variant:'tertiary', icon:'arrow'}},
+      subtitle:"Your payment went through — you're all set.",
+      sections:[
+        {
+          variant:'card', layout:'stack',
+          elements:[
+            {kind:'badge', props:{text:'Paid', color:'positive'}},
+            {kind:'amount', props:{label:'Amount paid', value:2499, currency:'INR'}},
+            {kind:'divider', props:{}},
+            {kind:'text', props:{text:'Paid to Acme Store', tone:'normal'}},
+            {kind:'text', props:{text:'Transaction ID: pay_Mk29XQ7bL', tone:'muted'}},
+            {kind:'text', props:{text:'12 Feb 2025, 4:32 PM', tone:'subtle'}},
+          ],
+        },
+        {
+          variant:'plain', layout:'stack',
+          elements:[
+            {kind:'button', props:{text:'Download receipt', variant:'primary', icon:'download'}},
+            {kind:'button', props:{text:'Share receipt', variant:'secondary', icon:'share'}},
+            {kind:'button', props:{text:'Back to home', variant:'tertiary', icon:'arrow'}},
+          ],
+        },
       ],
     };
 
     const $ = id => document.getElementById(id);
+    const newSection = () => ({ variant:'card', layout:'stack', elements:[] });
 
-    // ── Palette ──────────────────────────────────────────────────────────────
-    const palette = $('palette');
-    Object.keys(KINDS).forEach(k=>{
-      const b=document.createElement('button'); b.className='chip'; b.textContent='+ '+k;
-      b.onclick=()=>{ state.elements.push({kind:k, props:{...DEFAULTS[k]}}); renderElements(); refresh(); };
-      palette.appendChild(b);
-    });
-
-    // ── Screen + section inputs ───────────────────────────────────────────────
+    // ── Screen inputs ────────────────────────────────────────────────────────
     $('screenTitle').value=state.title;
     $('screenSubtitle').value=state.subtitle;
-    $('secVariant').value=state.variant;
-    $('secLayout').value=state.layout;
     $('screenTitle').oninput=e=>{state.title=e.target.value;refresh();};
     $('screenSubtitle').oninput=e=>{state.subtitle=e.target.value;refresh();};
-    $('secVariant').onchange=e=>{state.variant=e.target.value;refresh();};
-    $('secLayout').onchange=e=>{state.layout=e.target.value;refresh();};
+    $('addSection').onclick=()=>{ state.sections.push(newSection()); renderSections(); refresh(); };
 
-    // ── Render the element cards (only on add/remove, to preserve focus) ───────
-    function renderElements(){
-      const wrap=$('elements'); wrap.innerHTML='';
-      state.elements.forEach((el,i)=>{
-        const card=document.createElement('div'); card.className='el';
-        const head=document.createElement('div'); head.className='el-head';
-        head.innerHTML=`<span class="kind">kind: "${el.kind}"</span>`;
-        const x=document.createElement('button'); x.className='x'; x.textContent='✕'; x.title='remove';
-        x.onclick=()=>{ state.elements.splice(i,1); renderElements(); refresh(); };
-        head.appendChild(x); card.appendChild(head);
+    // ── Render the section blocks (on structural change, to preserve focus) ───
+    function renderSections(){
+      const host=$('sections'); host.innerHTML='';
+      state.sections.forEach((sec,si)=>{
+        const block=document.createElement('div'); block.className='section-block';
 
-        const spec=KINDS[el.kind];
-        if(Object.keys(spec).length===0){
-          const p=document.createElement('p'); p.className='hint'; p.textContent='No properties — a divider is just a divider.';
-          card.appendChild(p);
+        const head=document.createElement('div'); head.className='section-head';
+        head.innerHTML=`<span class="section-name">sections[${si}]</span>`;
+        if(state.sections.length>1){
+          const rm=document.createElement('button'); rm.className='x'; rm.textContent='✕'; rm.title='remove section';
+          rm.onclick=()=>{ state.sections.splice(si,1); renderSections(); refresh(); };
+          head.appendChild(rm);
         }
-        Object.entries(spec).forEach(([name,def])=>{
-          const f=document.createElement('label'); f.className='field';
-          const lab=document.createElement('span'); lab.className='lab';
-          lab.innerHTML=name+(def.req?' <span class="req">*</span>':' <span style="color:var(--muted)">(optional)</span>');
-          f.appendChild(lab);
-          let inp;
-          if(Array.isArray(def.t)){ inp=document.createElement('select'); def.t.forEach(o=>{const op=document.createElement('option');op.textContent=o;inp.appendChild(op);}); inp.value=el.props[name]??def.t[0]; }
-          else if(def.t==='boolean'){ inp=document.createElement('select'); ['true','false'].forEach(o=>{const op=document.createElement('option');op.textContent=o;inp.appendChild(op);}); inp.value=String(el.props[name]??false); }
-          else { inp=document.createElement('input'); inp.type=def.t==='number'?'number':'text'; inp.value=el.props[name]??''; }
-          inp.oninput=()=>{
-            let v=inp.value;
-            if(def.t==='number') v=v===''?'':Number(v);
-            else if(def.t==='boolean') v=(v==='true');
-            el.props[name]=v; refresh();
-          };
-          f.appendChild(inp); card.appendChild(f);
+        block.appendChild(head);
+
+        const row=document.createElement('div'); row.className='row';
+        row.appendChild(selectField('variant',['card','plain'],sec.variant,v=>{sec.variant=v;refresh();}));
+        row.appendChild(selectField('layout',['stack','grid'],sec.layout,v=>{sec.layout=v;refresh();}));
+        block.appendChild(row);
+
+        const palTitle=document.createElement('h3'); palTitle.textContent='add a component'; block.appendChild(palTitle);
+        const pal=document.createElement('div'); pal.className='palette';
+        Object.keys(KINDS).forEach(k=>{
+          const b=document.createElement('button'); b.className='chip'; b.textContent='+ '+k;
+          b.onclick=()=>{ sec.elements.push({kind:k, props:{...DEFAULTS[k]}}); renderSections(); refresh(); };
+          pal.appendChild(b);
         });
-        wrap.appendChild(card);
+        block.appendChild(pal);
+
+        sec.elements.forEach((el,ei)=>block.appendChild(elementCard(sec,el,ei)));
+        host.appendChild(block);
       });
+    }
+
+    function selectField(key,opts,value,onChange){
+      const f=document.createElement('label'); f.className='field';
+      const lab=document.createElement('span'); lab.className='lab';
+      lab.innerHTML=`<code>${key}</code> <span style="color:var(--muted)">(optional)</span>`;
+      f.appendChild(lab);
+      const sel=document.createElement('select');
+      opts.forEach(o=>{const op=document.createElement('option');op.textContent=o;sel.appendChild(op);});
+      sel.value=value??opts[0];
+      sel.onchange=()=>onChange(sel.value);
+      f.appendChild(sel);
+      return f;
+    }
+
+    function elementCard(sec,el,i){
+      const card=document.createElement('div'); card.className='el';
+      const head=document.createElement('div'); head.className='el-head';
+      head.innerHTML=`<span class="kind">kind: "${el.kind}"</span>`;
+      const x=document.createElement('button'); x.className='x'; x.textContent='✕'; x.title='remove';
+      x.onclick=()=>{ sec.elements.splice(i,1); renderSections(); refresh(); };
+      head.appendChild(x); card.appendChild(head);
+
+      const spec=KINDS[el.kind];
+      if(Object.keys(spec).length===0){
+        const p=document.createElement('p'); p.className='hint'; p.textContent='No properties — a divider is just a divider.';
+        card.appendChild(p);
+      }
+      Object.entries(spec).forEach(([name,def])=>{
+        const f=document.createElement('label'); f.className='field';
+        const lab=document.createElement('span'); lab.className='lab';
+        lab.innerHTML=`<code>${name}</code>`+(def.req?' <span class="req">*required</span>':' <span style="color:var(--muted)">(optional)</span>');
+        f.appendChild(lab);
+        let inp;
+        if(Array.isArray(def.t)){ inp=document.createElement('select'); def.t.forEach(o=>{const op=document.createElement('option');op.textContent=o;inp.appendChild(op);}); inp.value=el.props[name]??def.t[0]; }
+        else if(def.t==='boolean'){ inp=document.createElement('select'); ['true','false'].forEach(o=>{const op=document.createElement('option');op.textContent=o;inp.appendChild(op);}); inp.value=String(el.props[name]??false); }
+        else { inp=document.createElement('input'); inp.type=def.t==='number'?'number':'text'; inp.value=el.props[name]??''; }
+        inp.oninput=()=>{
+          let v=inp.value;
+          if(def.t==='number') v=v===''?'':Number(v);
+          else if(def.t==='boolean') v=(v==='true');
+          el.props[name]=v; refresh();
+        };
+        f.appendChild(inp); card.appendChild(f);
+      });
+      return card;
     }
 
     // ── Build the spec object (only include set optional props) ───────────────
     function buildSpec(){
-      const elements=state.elements.map(el=>{
-        const out={kind:el.kind};
-        const spec=KINDS[el.kind];
-        Object.entries(spec).forEach(([name,def])=>{
-          const v=el.props[name];
-          const empty = v===undefined || v==='' || (def.t==='number' && Number.isNaN(v));
-          if(def.req || !empty){ if(!empty) out[name]=v; }
+      const sections=state.sections.map(sec=>{
+        const elements=sec.elements.map(el=>{
+          const out={kind:el.kind};
+          Object.entries(KINDS[el.kind]).forEach(([name,def])=>{
+            const v=el.props[name];
+            const empty = v===undefined || v==='' || (def.t==='number' && Number.isNaN(v));
+            if(!empty) out[name]=v;
+          });
+          return out;
         });
-        return out;
+        const section={};
+        if(sec.variant) section.variant=sec.variant;
+        if(sec.layout) section.layout=sec.layout;
+        section.elements=elements;
+        return section;
       });
-      const section={};
-      if(state.variant) section.variant=state.variant;
-      if(state.layout) section.layout=state.layout;
-      section.elements=elements;
       const screen={title:state.title};
       if(state.subtitle) screen.subtitle=state.subtitle;
-      screen.sections=[section];
+      screen.sections=sections;
       return screen;
     }
 
@@ -289,13 +345,15 @@
     function validate(){
       const errs=[];
       if(!state.title.trim()) errs.push('Screen is missing its required "title".');
-      if(state.elements.length===0) errs.push('The section needs at least one element.');
-      state.elements.forEach((el,i)=>{
-        Object.entries(KINDS[el.kind]).forEach(([name,def])=>{
-          if(!def.req) return;
-          const v=el.props[name];
-          if(v===undefined||v===''||(def.t==='number'&&Number.isNaN(v)))
-            errs.push(`Element ${i+1} (${el.kind}) is missing required "${name}".`);
+      state.sections.forEach((sec,si)=>{
+        if(sec.elements.length===0) errs.push(`sections[${si}] needs at least one element.`);
+        sec.elements.forEach((el,ei)=>{
+          Object.entries(KINDS[el.kind]).forEach(([name,def])=>{
+            if(!def.req) return;
+            const v=el.props[name];
+            if(v===undefined||v===''||(def.t==='number'&&Number.isNaN(v)))
+              errs.push(`sections[${si}].elements[${ei}] (${el.kind}) is missing required "${name}".`);
+          });
         });
       });
       return errs;
@@ -343,13 +401,17 @@
       }
       return '';
     }
-    function renderPreview(){
-      const grid=state.layout==='grid';
-      const inner = state.elements.length
-        ? `<div class="${grid?'pv-row':'pv-col'}">${state.elements.map(renderOne).join('')}</div>`
+    function renderSectionPreview(sec){
+      const grid=sec.layout==='grid';
+      const inner = sec.elements.length
+        ? `<div class="${grid?'pv-row':'pv-col'}">${sec.elements.map(renderOne).join('')}</div>`
         : '<div class="pv-empty">Add a component to see it render here.</div>';
+      return sec.variant==='card' ? `<div class="pv-card">${inner}</div>` : inner;
+    }
+    function renderPreview(){
       const title = `<div class="pv-title-wrap"><div class="pv-h1">${esc(state.title)||'&nbsp;'}</div>${state.subtitle?`<div class="pv-text subtle">${esc(state.subtitle)}</div>`:''}</div>`;
-      $('preview').innerHTML = title + (state.variant==='card' ? `<div class="pv-card">${inner}</div>` : inner);
+      const body = `<div class="pv-sections">${state.sections.map(renderSectionPreview).join('')}</div>`;
+      $('preview').innerHTML = title + body;
     }
 
     function refresh(){
@@ -365,7 +427,7 @@
     // ── The guardrail demo (additionalProperties:false) ───────────────────────
     function reject(name){
       const t=$('toast'); t.className='no';
-      const first=state.elements[0]?.kind ?? 'the component';
+      const first=state.sections[0]?.elements[0]?.kind ?? 'the component';
       t.textContent = name
         ? `✗ Rejected: "${name}" isn't a property of "${first}". additionalProperties:false → no new properties can be added.`
         : '✗ Rejected: additionalProperties:false → you can\'t add properties that aren\'t in the schema.';
@@ -375,7 +437,7 @@
     $('gQuick').onclick=()=>{ $('gName').value='color'; $('gVal').value='#00ff00'; reject('color'); };
 
     // ── Go ────────────────────────────────────────────────────────────────────
-    renderElements(); refresh();
+    renderSections(); refresh();
   </script>
 </body>
 </html>

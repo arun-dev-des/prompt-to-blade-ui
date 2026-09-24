@@ -15,6 +15,7 @@
     "@razorpay/i18nify-js": "^1.12.9",
     "@razorpay/i18nify-react": "^4.0.12",
     "framer-motion": "^12.41.0",
+    "posthog-js": "^1.434.12",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-hot-toast": "^2.6.0",
