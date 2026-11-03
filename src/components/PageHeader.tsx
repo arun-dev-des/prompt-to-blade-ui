@@ -1,23 +1,29 @@
 import {
   Box,
   Text,
-  Badge,
   Tooltip,
   IconButton,
+  Button,
+  ExternalLinkIcon,
   RazorpayIcon,
   SunIcon,
   MoonIcon,
   useTheme,
 } from '@razorpay/blade/components';
+import { track } from '../analytics';
+import { BLOG } from '../links';
+import { RAILS_MIN_WIDTH, useMinWidth } from '../useMinWidth';
 
 /**
- * Sticky top bar: brand on the left, theme toggle on the right.
+ * Sticky top bar: brand on the left; the build write-up link and theme toggle on the right.
  * Owns its own colour-scheme control via Blade's `useTheme().setColorScheme`,
  * so dark mode works against the live BladeProvider with no prop drilling.
  */
 export const PageHeader = () => {
   const { colorScheme, setColorScheme } = useTheme();
   const isDark = colorScheme === 'dark';
+  // Track the page body: wider container once the right rail appears.
+  const wide = useMinWidth(RAILS_MIN_WIDTH);
 
   return (
     <Box
@@ -31,7 +37,7 @@ export const PageHeader = () => {
     >
       <Box
         margin="auto"
-        maxWidth="1120px"
+        maxWidth={wide ? '1560px' : '1120px'}
         width="100%"
         display="flex"
         flexDirection="row"
@@ -43,14 +49,23 @@ export const PageHeader = () => {
         <Box display="flex" flexDirection="row" alignItems="center" gap="spacing.3">
           <RazorpayIcon size="large" color="surface.icon.primary.normal" />
           <Text weight="semibold" color="surface.text.gray.normal">
-            Events
+            Razorpay Blade
           </Text>
-          <Badge color="primary" size="small">
-            Blade
-          </Badge>
         </Box>
 
-        <Box display="flex" flexDirection="row" alignItems="center" gap={{ base: 'spacing.4', m: 'spacing.6' }}>
+        <Box display="flex" flexDirection="row" alignItems="center" gap={{ base: 'spacing.3', m: 'spacing.5' }}>
+          <Button
+            variant="tertiary"
+            size="small"
+            icon={ExternalLinkIcon}
+            iconPosition="right"
+            href={BLOG.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => track('blog_link_clicked', { placement: 'header' })}
+          >
+            How I built this
+          </Button>
           <Tooltip content={isDark ? 'Switch to light' : 'Switch to dark'}>
             <IconButton
               icon={isDark ? SunIcon : MoonIcon}

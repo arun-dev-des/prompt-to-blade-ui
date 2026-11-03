@@ -28,6 +28,7 @@ import {
   TrendingDownIcon,
 } from '@razorpay/blade/components';
 import type { IconComponent } from '@razorpay/blade/components';
+import { Reveal } from '../components/Reveal';
 import type { UIScreen, UISection, UIElement, ElementTone, FeedbackColor } from './uiSchema';
 
 const ICONS: Record<string, IconComponent> = {
@@ -185,15 +186,24 @@ const Section = ({ section }: { section: UISection }) => {
   );
 };
 
-/** Render a full Claude-generated screen spec as real Blade components. */
+/**
+ * Render a Claude-generated screen spec as real Blade components. Safe to call
+ * with a partial screen while the response is still streaming: the title and
+ * each section fade up once, when they first mount (keys are positional, so
+ * sections already on screen never re-animate as later ones arrive).
+ */
 export const SchemaRenderer = ({ screen }: { screen: UIScreen }) => (
   <Box width="100%" maxWidth="640px" marginX="auto" display="flex" flexDirection="column" gap="spacing.6">
-    <Box display="flex" flexDirection="column" gap="spacing.2">
-      <Heading as="h1" size="large" weight="semibold" color="surface.text.gray.normal">{screen.title}</Heading>
-      {screen.subtitle ? <Text color="surface.text.gray.subtle">{screen.subtitle}</Text> : null}
-    </Box>
+    <Reveal>
+      <Box display="flex" flexDirection="column" gap="spacing.2">
+        <Heading as="h1" size="large" weight="semibold" color="surface.text.gray.normal">{screen.title}</Heading>
+        {screen.subtitle ? <Text color="surface.text.gray.subtle">{screen.subtitle}</Text> : null}
+      </Box>
+    </Reveal>
     {(screen.sections ?? []).slice(0, 4).map((section, i) => (
-      <Section key={i} section={section} />
+      <Reveal key={i}>
+        <Section section={section} />
+      </Reveal>
     ))}
   </Box>
 );

@@ -17,7 +17,7 @@ Stack: Vite + React + TypeScript + `@razorpay/blade`, one Vercel serverless func
 
 ```bash
 npm install                 # .npmrc pins --legacy-peer-deps (Blade lists RN peers a web app skips)
-npm run dev                 # Vite dev server — FRONTEND ONLY (see gotcha below)
+npm run dev                 # Vite dev server; also serves /api/generate (key from shell or .env.local)
 npm run build               # tsc -b && vite build
 npm run lint                # oxlint
 npx tsc -b                  # type-check only
@@ -25,24 +25,20 @@ npx tsc -b                  # type-check only
 
 There is **no test runner** configured. Verification = `npx tsc -b` + `npm run lint` + `npm run build`.
 
-### Running the real AI path locally (important gotcha)
+### Running the real AI path locally
 
-`npm run dev` does **not** run `api/generate.ts`, so Level 2 silently falls back to recipe mode
-(no live Claude). To exercise the actual Claude path you must use `vercel dev`, AND the key must
-be **exported into the shell before launching** — `vercel dev` does not reliably inject
-`.env.local` into the function (a blank "Sensitive" `ANTHROPIC_API_KEY` from the linked Vercel
-project shadows it):
-
-```bash
-export ANTHROPIC_API_KEY=$(grep '^ANTHROPIC_API_KEY=' .env.local | cut -d= -f2-)
-npx vercel dev --listen 3000
-curl -s localhost:3000/api/generate    # sanity: should report "keyConfigured":true
-```
+`npm run dev` serves `api/generate.ts` itself (a dev middleware in `vite.config.ts`), streaming
+included — put `ANTHROPIC_API_KEY` in `.env.local` (or export it) and it just works. Without a
+key, Level 2 falls back to recipe mode. `vercel dev` also works but doesn't reliably inject
+`.env.local` into the function; if you use it, export the key into the shell first
+(`export ANTHROPIC_API_KEY=$(grep '^ANTHROPIC_API_KEY=' .env.local | cut -d= -f2-)`).
 
 ## Architecture — the constrained-generation pipeline
 
 ```
 PromptStudio (text box)  →  POST /api/generate  →  Claude w/ JSON schema  →  UIScreen spec
+                              (NDJSON stream)         (streamed JSON text)     (parsePartialScreen,
+                                                                                repainted per chunk)
                                                                                  │
                             SchemaRenderer (spec → Blade components)  ◄──────────┤
                             screenToJsx     (spec → copy-pasteable JSX) ◄────────┘
@@ -56,6 +52,14 @@ styling values ever come from the model.
 **`src/level2/uiSchema.ts` is the contract** and the center of gravity. Four things consume it:
 the JSON schema sent to Claude, the TS types (`UIScreen`/`UISection`/`UIElement`), the renderer,
 and the serializer.
+
+**Streaming.** `/api/generate` replies with NDJSON (`{"delta":…}` lines, then `{"done":true}` or
+`{"error":…}`); pre-stream failures are still plain JSON with a non-2xx status. The client feeds
+the accumulated text to `src/level2/partialScreen.ts`, which cuts at the last finished value and
+closes the open brackets — it assumes the schema's fixed nesting depth (screen › sections ›
+section › elements › element), so **a schema that adds nesting levels must update its depth
+constants**. Keep the handler on plain Node `req`/`res` (no `res.status().json()`) so the Vite
+dev middleware can run it.
 
 ### ⚠️ The schema lives in TWO places — keep them in sync
 
