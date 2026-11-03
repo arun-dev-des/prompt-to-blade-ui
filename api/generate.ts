@@ -7,8 +7,16 @@ import Anthropic from '@anthropic-ai/sdk';
  * never shipped to the browser. POST a prompt and get back a validated Blade UI
  * spec (structured output); the frontend renders it with real Blade components.
  *
+ * The response is STREAMED as newline-delimited JSON — `{"delta":"<json text>"}`
+ * lines as Claude generates, then `{"done":true}` (or `{"error":"..."}`) — so
+ * the client can paint the first section of the screen long before the model
+ * has finished. Errors BEFORE the first byte are plain JSON with a non-2xx
+ * status, as before.
+ *
  * Self-contained on purpose (schema + prompt inlined) so there is no
- * cross-directory import for Vercel's function bundler to resolve.
+ * cross-directory import for Vercel's function bundler to resolve. It also
+ * sticks to the plain Node req/res API (no res.status().json()) so the Vite
+ * dev middleware in vite.config.ts can run it unchanged.
  *
  * GET this URL in a browser for a health check: it reports whether the function
  * is deployed and whether it can see the key — the fastest way to diagnose the
@@ -70,33 +78,51 @@ Design principles (apply rigorously):
 
 Do not include any prose outside the JSON.`;
 
+const sendJson = (res: VercelResponse, status: number, body: unknown) => {
+  res.statusCode = status;
+  res.setHeader('content-type', 'application/json');
+  res.end(JSON.stringify(body));
+};
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const keyConfigured = Boolean(process.env.ANTHROPIC_API_KEY);
 
   // Health check — open this URL in a browser to diagnose.
   if (req.method === 'GET') {
-    res.status(200).json({ status: 'ok', deployed: true, keyConfigured });
+    sendJson(res, 200, { status: 'ok', deployed: true, keyConfigured });
     return;
   }
   if (req.method !== 'POST') {
-    res.status(405).json({ error: 'Method not allowed' });
+    sendJson(res, 405, { error: 'Method not allowed' });
     return;
   }
   if (!keyConfigured) {
-    res.status(503).json({ error: 'not_configured' });
+    sendJson(res, 503, { error: 'not_configured' });
     return;
   }
 
   const body = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : req.body ?? {};
   const prompt = String(body.prompt ?? '').slice(0, 500).trim();
   if (!prompt) {
-    res.status(400).json({ error: 'empty_prompt' });
+    sendJson(res, 400, { error: 'empty_prompt' });
     return;
   }
 
+  let started = false;
+  const write = (obj: unknown) => {
+    if (!started) {
+      started = true;
+      res.statusCode = 200;
+      res.setHeader('content-type', 'application/x-ndjson; charset=utf-8');
+      res.setHeader('cache-control', 'no-cache, no-transform');
+      res.setHeader('x-accel-buffering', 'no');
+    }
+    res.write(`${JSON.stringify(obj)}\n`);
+  };
+
   try {
     const client = new Anthropic();
-    const message = await client.messages.create({
+    const stream = client.messages.stream({
       model: 'claude-opus-4-8',
       max_tokens: 2048,
       system: SYSTEM_PROMPT,
@@ -104,13 +130,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       output_config: { format: { type: 'json_schema', schema: UI_SCHEMA } },
     } as never);
 
-    const block = (message as { content: Array<{ type: string; text?: string }> }).content.find(
-      (b) => b.type === 'text',
-    );
-    const screen = JSON.parse(block?.text ?? '{}');
-    res.status(200).json({ screen });
+    // Stop paying for tokens nobody will read if the tab closes mid-stream.
+    res.on('close', () => {
+      if (!res.writableEnded) stream.abort();
+    });
+
+    stream.on('text', (delta: string) => write({ delta }));
+    await stream.finalMessage();
+    write({ done: true });
+    res.end();
   } catch (err) {
     const detail = err instanceof Error ? err.message : 'unknown';
-    res.status(502).json({ error: 'generation_failed', detail });
+    if (!started) {
+      sendJson(res, 502, { error: 'generation_failed', detail });
+    } else {
+      write({ error: 'generation_failed', detail });
+      res.end();
+    }
   }
 }

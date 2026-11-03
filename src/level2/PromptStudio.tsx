@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import {
   Box,
   Text,
@@ -21,9 +21,12 @@ import {
 } from '@razorpay/blade/components';
 import { Reveal } from '../components/Reveal';
 import { track } from '../analytics';
+import { RAILS_MIN_WIDTH, useMinWidth } from '../useMinWidth';
+import { BlogBanner, BlogCard, StatsCard, StatsStrip } from '../components/ProofPanels';
 import { recipes, matchRecipe } from './recipes';
 import { SchemaRenderer } from './SchemaRenderer';
 import { CodeBlock } from './CodeBlock';
+import { parsePartialScreen } from './partialScreen';
 import { screenToJsx } from './screenToJsx';
 import type { UIScreen } from './uiSchema';
 
@@ -44,8 +47,38 @@ const EXAMPLES = [
  * The prompt is POSTed to /api/generate (a serverless function holding the
  * Anthropic key). Claude returns a structured Blade UI spec, which is rendered
  * with real Blade components + tokens — guaranteed on-system whatever the model
- * writes. If the API isn't configured, it falls back to local keyword recipes.
+ * writes. The response is streamed (NDJSON), and the preview paints section by
+ * section as the JSON arrives. If the API isn't configured, it falls back to
+ * local keyword recipes.
  */
+
+/**
+ * Read the NDJSON stream from /api/generate, calling onText with the full JSON
+ * text received so far after every chunk. Resolves with the complete text.
+ */
+const readGenerateStream = async (res: Response, onText: (text: string) => void) => {
+  const reader = res.body!.getReader();
+  const decoder = new TextDecoder();
+  let pending = '';
+  let text = '';
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    pending += decoder.decode(value, { stream: true });
+    const lines = pending.split('\n');
+    pending = lines.pop() ?? '';
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const msg = JSON.parse(line) as { delta?: string; error?: string; detail?: string };
+      if (msg.error) throw new Error(msg.detail ?? msg.error);
+      if (msg.delta) {
+        text += msg.delta;
+        onText(text);
+      }
+    }
+  }
+  return text;
+};
 export const PromptStudio = () => {
   const toast = useToast();
   const [prompt, setPrompt] = useState('');
@@ -55,6 +88,9 @@ export const PromptStudio = () => {
   const [recipeId, setRecipeId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [buildKey, setBuildKey] = useState(0);
+  // Number of sections last pushed to state — skip re-renders for chunks that
+  // don't change what's on screen (most of them).
+  const lastShape = useRef('');
 
   // Grow the prompt box with its content: count hard newlines plus an estimate
   // of wrapped lines (~56 chars/line), clamped to Blade's supported 1–5 range.
@@ -84,21 +120,40 @@ export const PromptStudio = () => {
     setScreen(null);
     setRecipeId(null);
     setNotice(null);
+    setBuildKey((k) => k + 1);
     track('prompt_build_started', {
       promptLength: value.length,
       isExample: EXAMPLES.includes(value),
     });
+    const startedAt = performance.now();
+    let firstPaintMs: number | null = null;
+    lastShape.current = '';
+    setMode('ai');
     try {
       const res = await fetch('/api/generate', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ prompt: value }),
       });
-      if (res.ok) {
-        const data = (await res.json()) as { screen: UIScreen };
-        setMode('ai');
-        setScreen(data.screen);
-        track('prompt_build_succeeded', { mode: 'ai', sectionCount: data.screen.sections?.length ?? 0 });
+      if (res.ok && res.body) {
+        const text = await readGenerateStream(res, (soFar) => {
+          const partial = parsePartialScreen(soFar);
+          if (!partial) return;
+          // Only repaint when a new finished value has landed.
+          const shape = JSON.stringify(partial);
+          if (shape === lastShape.current) return;
+          lastShape.current = shape;
+          if (firstPaintMs === null) firstPaintMs = Math.round(performance.now() - startedAt);
+          setScreen(partial);
+        });
+        const final = JSON.parse(text) as UIScreen;
+        setScreen(final);
+        track('prompt_build_succeeded', {
+          mode: 'ai',
+          sectionCount: final.sections?.length ?? 0,
+          firstPaintMs,
+          totalMs: Math.round(performance.now() - startedAt),
+        });
       } else {
         const body = await res.json().catch(() => ({}) as Record<string, unknown>);
         setNotice(`Live AI unavailable (${res.status} ${String(body.error ?? '')}${body.detail ? ` — ${String(body.detail)}` : ''}). Showing an offline build.`);
@@ -110,31 +165,18 @@ export const PromptStudio = () => {
       const recipeMatch = fallbackToRecipe(value);
       track('prompt_build_fallback', { reason: 'network_error', recipeMatch });
     } finally {
-      setBuildKey((k) => k + 1);
       setStatus('done');
     }
   };
 
   const matched = recipeId ? recipes.find((r) => r.id === recipeId) : null;
 
-  return (
-    <Box
-      margin="auto"
-      maxWidth="1120px"
-      width="100%"
-      paddingX={{ base: 'spacing.5', m: 'spacing.7' }}
-      paddingY={{ base: 'spacing.7', m: 'spacing.9' }}
-      display="flex"
-      flexDirection="column"
-      gap="spacing.7"
-    >
+  // Wide screens: studio on the left, write-up + stats cards in a right rail. Narrower ones fall back to a banner + stats strip above the studio.
+  const wide = useMinWidth(RAILS_MIN_WIDTH);
+
+  const studio = (
+    <Box display="flex" flexDirection="column" gap="spacing.7" flex={1} minWidth="spacing.0">
       <Box display="flex" flexDirection="column" gap="spacing.3">
-        <Box display="flex" flexDirection="row" alignItems="center" gap="spacing.3">
-          <Badge color="primary" emphasis="intense" icon={SparklesIcon}>
-            Level 2
-          </Badge>
-          <Text color="surface.text.gray.muted">Freestyle · prompt → Blade, by Claude</Text>
-        </Box>
         <Heading as="h1" size="xlarge" weight="semibold" color="surface.text.gray.normal">
           Describe it. Claude builds it in Blade.
         </Heading>
@@ -189,24 +231,31 @@ export const PromptStudio = () => {
           </Box>
         ) : null}
 
-        {status === 'building' ? (
+        {status === 'building' && !screen ? (
           <Box display="flex" flexDirection="column" alignItems="center" gap="spacing.4" paddingY="spacing.10">
             <Spinner accessibilityLabel="Designing your screen" size="large" color="primary" />
             <Text color="surface.text.gray.muted">Claude is designing in Blade…</Text>
           </Box>
         ) : null}
 
-        {status === 'done' ? (
-          <Reveal key={buildKey}>
-            <Box display="flex" flexDirection="column" gap="spacing.5">
+        {status === 'done' || (status === 'building' && screen) ? (
+          // Same node from first streamed section through to "Built", so the
+          // tabs and already-rendered sections are never remounted mid-stream.
+          <Box key={buildKey} display="flex" flexDirection="column" gap="spacing.5">
               {mode === 'recipe' && notice ? (
                 <Alert isFullWidth color="notice" title="Couldn't reach Claude" description={notice} isDismissible={false} />
               ) : null}
               <Box display="flex" flexDirection="row" alignItems="center" gap="spacing.3" flexWrap="wrap">
-                <Badge color="positive" emphasis="intense">Built</Badge>
+                {status === 'building' ? (
+                  <Badge color="information" emphasis="intense">Designing…</Badge>
+                ) : (
+                  <Badge color="positive" emphasis="intense">Built</Badge>
+                )}
                 <Text size="small" color="surface.text.gray.muted">
                   {mode === 'ai'
-                    ? 'Generated by Claude · rendered in Blade'
+                    ? status === 'building'
+                      ? 'Streaming from Claude · rendering in Blade as it arrives'
+                      : 'Generated by Claude · rendered in Blade'
                     : matched
                       ? `Offline fallback · ${matched.label}`
                       : 'Offline fallback · recipe library'}
@@ -230,14 +279,65 @@ export const PromptStudio = () => {
                   </TabPanel>
                 </Tabs>
               ) : matched ? (
-                <matched.Component />
+                <Reveal>
+                  <matched.Component />
+                </Reveal>
               ) : (
-                <FallbackResult onPick={build} />
+                <Reveal>
+                  <FallbackResult onPick={build} />
+                </Reveal>
               )}
-            </Box>
-          </Reveal>
+          </Box>
         ) : null}
       </Box>
+    </Box>
+  );
+
+  if (wide) {
+    return (
+      <Box
+        margin="auto"
+        maxWidth="1560px"
+        width="100%"
+        paddingX="spacing.7"
+        paddingY="spacing.9"
+        display="flex"
+        flexDirection="row"
+        alignItems="flex-start"
+        gap="spacing.8"
+      >
+        {studio}
+        <Box
+          width="300px"
+          flexShrink={0}
+          position="sticky"
+          top="spacing.11"
+          alignSelf="flex-start"
+          display="flex"
+          flexDirection="column"
+          gap="spacing.5"
+        >
+          <BlogCard />
+          <StatsCard />
+        </Box>
+      </Box>
+    );
+  }
+
+  return (
+    <Box
+      margin="auto"
+      maxWidth="1120px"
+      width="100%"
+      paddingX={{ base: 'spacing.5', m: 'spacing.7' }}
+      paddingY={{ base: 'spacing.7', m: 'spacing.9' }}
+      display="flex"
+      flexDirection="column"
+      gap="spacing.6"
+    >
+      <BlogBanner />
+      <StatsStrip />
+      {studio}
     </Box>
   );
 };
